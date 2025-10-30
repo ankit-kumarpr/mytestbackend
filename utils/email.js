@@ -1,20 +1,19 @@
 const nodemailer = require('nodemailer');
-const { FROM_EMAIL, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+const { SMTP_USER, SMTP_PASS, FROM_EMAIL } = process.env;
 
+// ✅ Simple Gmail transporter (no SMTP host/port)
 const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
-  port: Number(SMTP_PORT || 587),
-  secure: false,
+  service: 'gmail',
   auth: {
     user: SMTP_USER,
-    pass: SMTP_PASS
+    pass: SMTP_PASS,
   },
 });
 
 async function sendMail({ to, subject, html, text }) {
   try {
     const info = await transporter.sendMail({
-      from: FROM_EMAIL,
+      from: FROM_EMAIL || SMTP_USER,
       to,
       subject,
       text,
