@@ -1,32 +1,29 @@
-const nodemailer = require('nodemailer');
-const { SMTP_USER, SMTP_PASS, FROM_EMAIL } = process.env;
+const { Resend } = require('resend');
+const { RESEND_API_KEY, FROM_EMAIL } = process.env;
 
-// ✅ Simple Gmail transporter (no SMTP host/port)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: SMTP_USER,
-    pass: SMTP_PASS,
-  },
-});
+const resend = new Resend(RESEND_API_KEY);
 
+/**
+ * ✅ Send email using Resend API (works on Render)
+ */
 async function sendMail({ to, subject, html, text }) {
   try {
-    const info = await transporter.sendMail({
-      from: FROM_EMAIL || SMTP_USER,
+    const data = await resend.emails.send({
+      from: FROM_EMAIL,
       to,
       subject,
+      html,
       text,
-      html
     });
-    
-    console.log('✅ Email sent successfully:', info.messageId);
-    return info;
+
+    console.log('✅ Email sent successfully:', data.id || data);
+    return data;
   } catch (error) {
     console.error('❌ Email sending failed:', error.message);
     throw new Error(`Email sending failed: ${error.message}`);
   }
 }
+
 
 function otpEmailTemplate({ code }) {
   return `
