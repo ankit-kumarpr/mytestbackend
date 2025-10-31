@@ -250,22 +250,37 @@ exports.login = async (req, res) => {
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
+    // Prepare response data
+    const responseData = {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isVerified: user.isVerified
+      },
+      accessToken,
+      refreshToken
+    };
+
+    // If user is vendor, include their business data (KYC)
+    if (user.role === 'vendor') {
+      const Kyc = require('../models/Kyc');
+      const businesses = await Kyc.find({ userId: user._id })
+        .populate('approvedBy', 'name email')
+        .populate('rejectedBy', 'name email')
+        .sort({ createdAt: -1 });
+      
+      responseData.businesses = businesses;
+      responseData.totalBusinesses = businesses.length;
+    }
+
     // Return user data (password already removed by toJSON method)
     res.status(200).json({
       success: true,
       message: 'Login successful',
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          isVerified: user.isVerified
-        },
-        accessToken,
-        refreshToken
-      }
+      data: responseData
     });
   } catch (error) {
     res.status(500).json({
