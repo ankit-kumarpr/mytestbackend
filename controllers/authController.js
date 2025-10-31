@@ -215,6 +215,7 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -222,7 +223,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Find user
+    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({
@@ -231,7 +232,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check password
+    // Validate password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -250,7 +251,7 @@ exports.login = async (req, res) => {
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    // Prepare response data
+    // Prepare user response data
     const responseData = {
       user: {
         id: user._id,
@@ -258,43 +259,42 @@ exports.login = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-<<<<<<< HEAD
         isVerified: user.isVerified,
         location: user.location || null
-=======
-        isVerified: user.isVerified
->>>>>>> 3d6f991f060cb4276967460ef5844168a5751dc1
       },
       accessToken,
       refreshToken
     };
 
-    // If user is vendor, include their business data (KYC)
+    // If user is vendor, include their business (KYC) data
     if (user.role === 'vendor') {
       const Kyc = require('../models/Kyc');
       const businesses = await Kyc.find({ userId: user._id })
         .populate('approvedBy', 'name email')
         .populate('rejectedBy', 'name email')
         .sort({ createdAt: -1 });
-      
+
       responseData.businesses = businesses;
       responseData.totalBusinesses = businesses.length;
     }
 
-    // Return user data (password already removed by toJSON method)
-    res.status(200).json({
+    // Send success response
+    return res.status(200).json({
       success: true,
       message: 'Login successful',
       data: responseData
     });
+
   } catch (error) {
-    res.status(500).json({
+    console.error('Login Error:', error);
+    return res.status(500).json({
       success: false,
       message: 'Login failed',
       error: error.message
     });
   }
 };
+
 
 // Super Admin Register (separate API - no OTP needed)
 exports.registerSuperAdmin = async (req, res) => {
