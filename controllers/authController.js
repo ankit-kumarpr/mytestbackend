@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const Otp = require('../models/Otp');
 const { sendMail, otpEmailTemplate, welcomeForUserTemplate, welcomeForAdminTemplate } = require('../utils/email');
-const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
+const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 
 // Generate random OTP
 function generateOTP() {
@@ -250,22 +250,38 @@ exports.login = async (req, res) => {
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
+    // Prepare response data
+    const responseData = {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isVerified: user.isVerified,
+        location: user.location || null
+      },
+      accessToken,
+      refreshToken
+    };
+
+    // If user is vendor, include their business data (KYC)
+    if (user.role === 'vendor') {
+      const Kyc = require('../models/Kyc');
+      const businesses = await Kyc.find({ userId: user._id })
+        .populate('approvedBy', 'name email')
+        .populate('rejectedBy', 'name email')
+        .sort({ createdAt: -1 });
+      
+      responseData.businesses = businesses;
+      responseData.totalBusinesses = businesses.length;
+    }
+
     // Return user data (password already removed by toJSON method)
     res.status(200).json({
       success: true,
       message: 'Login successful',
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          isVerified: user.isVerified
-        },
-        accessToken,
-        refreshToken
-      }
+      data: responseData
     });
   } catch (error) {
     res.status(500).json({
@@ -544,6 +560,70 @@ exports.registerSalesPerson = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Sales person registration failed',
+      error: error.message
+    });
+  }
+};
+
+// Refresh Token - Generate new access token using refresh token
+exports.refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token is required'
+      });
+    }
+
+    // Verify refresh token
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired refresh token'
+      });
+    }
+
+    // Check if user still exists
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Generate new access token
+    const payload = {
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role
+    };
+
+    const newAccessToken = generateAccessToken(payload);
+
+    res.status(200).json({
+      success: true,
+      message: 'Access token refreshed successfully',
+      data: {
+        accessToken: newAccessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        }
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Token refresh failed',
       error: error.message
     });
   }

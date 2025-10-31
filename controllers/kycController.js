@@ -2,6 +2,81 @@ const Kyc = require('../models/Kyc');
 const User = require('../models/User');
 const { sendMail, kycSubmissionTemplate, kycApprovalTemplate, kycRejectionTemplate } = require('../utils/email');
 const path = require('path');
+const axios = require('axios');
+
+// Helper function to get coordinates from address using Google Geocoding API
+const getCoordinatesFromAddress = async (addressComponents) => {
+  try {
+    // Build full address string
+    const fullAddress = [
+      addressComponents.plotNo,
+      addressComponents.buildingName,
+      addressComponents.street,
+      addressComponents.area,
+      addressComponents.city,
+      addressComponents.state,
+      addressComponents.pincode,
+      'India'
+    ].filter(Boolean).join(', ');
+
+    console.log('Geocoding address:', fullAddress);
+
+    // Check if Google Maps API key is available
+    if (!process.env.GOOGLE_MAPS_API_KEY) {
+      console.warn('Google Maps API key not found. Using pincode-based approximate location.');
+      // Fallback: Use India's approximate center for now
+      return {
+        longitude: 78.9629,
+        latitude: 20.5937,
+        address: fullAddress
+      };
+    }
+
+    // Call Google Geocoding API
+    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+      params: {
+        address: fullAddress,
+        key: process.env.GOOGLE_MAPS_API_KEY,
+        region: 'in' // Bias results to India
+      },
+      timeout: 5000
+    });
+
+    if (response.data.status === 'OK' && response.data.results.length > 0) {
+      const location = response.data.results[0].geometry.location;
+      console.log('Geocoding successful:', location);
+      return {
+        longitude: location.lng,
+        latitude: location.lat,
+        address: fullAddress
+      };
+    } else {
+      console.warn('Geocoding failed:', response.data.status);
+      // Fallback to approximate location
+      return {
+        longitude: 78.9629,
+        latitude: 20.5937,
+        address: fullAddress
+      };
+    }
+  } catch (error) {
+    console.error('Geocoding error:', error.message);
+    // Return approximate center of India as fallback
+    return {
+      longitude: 78.9629,
+      latitude: 20.5937,
+      address: [
+        addressComponents.plotNo,
+        addressComponents.buildingName,
+        addressComponents.street,
+        addressComponents.area,
+        addressComponents.city,
+        addressComponents.state,
+        addressComponents.pincode
+      ].filter(Boolean).join(', ')
+    };
+  }
+};
 
 // Submit KYC/Business Registration (Multiple businesses allowed)
 exports.submitKyc = async (req, res) => {
@@ -142,6 +217,19 @@ exports.submitKyc = async (req, res) => {
     const aadharImagePath = `/uploads/aadhar/${req.files.aadharImage[0].filename}`;
     const videoKycPath = `/uploads/video/${req.files.videoKyc[0].filename}`;
 
+    // Get coordinates from address automatically
+    const locationData = await getCoordinatesFromAddress({
+      plotNo,
+      buildingName,
+      street,
+      area,
+      city,
+      state,
+      pincode
+    });
+
+    console.log('Generated location:', locationData);
+
     // Create or update KYC
     const kycData = {
       userId,
@@ -155,6 +243,11 @@ exports.submitKyc = async (req, res) => {
       pincode,
       state,
       city,
+      businessAddress: locationData.address, // Full address
+      location: {
+        type: 'Point',
+        coordinates: [locationData.longitude, locationData.latitude]
+      },
       title,
       contactPerson,
       mobileNumber,

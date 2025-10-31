@@ -457,6 +457,108 @@ const uploadVendorProfileFiles = (req, res, next) => {
   });
 };
 
+// Storage configuration for Service Catalog
+const serviceCatalogDir = path.join(uploadsDir, 'services');
+const serviceImagesDir = path.join(serviceCatalogDir, 'images');
+const serviceAttachmentsDir = path.join(serviceCatalogDir, 'attachments');
+
+if (!fs.existsSync(serviceImagesDir)) {
+  fs.mkdirSync(serviceImagesDir, { recursive: true });
+}
+
+if (!fs.existsSync(serviceAttachmentsDir)) {
+  fs.mkdirSync(serviceAttachmentsDir, { recursive: true });
+}
+
+// Middleware for service catalog files (service image and attachments)
+const uploadServiceFiles = (req, res, next) => {
+  const upload = multer({
+    storage: multer.diskStorage({
+      destination: function (req, file, cb) {
+        if (file.fieldname === 'serviceImage') {
+          cb(null, serviceImagesDir);
+        } else if (file.fieldname === 'attachments') {
+          cb(null, serviceAttachmentsDir);
+        } else {
+          cb(new Error('Invalid field name'), null);
+        }
+      },
+      filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        if (file.fieldname === 'serviceImage') {
+          cb(null, 'service-image-' + uniqueSuffix + path.extname(file.originalname));
+        } else if (file.fieldname === 'attachments') {
+          cb(null, 'service-attachment-' + uniqueSuffix + path.extname(file.originalname));
+        } else {
+          cb(new Error('Invalid field name'), null);
+        }
+      }
+    }),
+    fileFilter: function (req, file, cb) {
+      if (file.fieldname === 'serviceImage') {
+        if (!file.mimetype.startsWith('image/')) {
+          return cb(new Error('Only image files are allowed for service image'), false);
+        }
+        cb(null, true);
+      } else if (file.fieldname === 'attachments') {
+        // Allow images, PDFs, and common document types
+        const allowedMimetypes = [
+          'image/',
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ];
+        
+        const isAllowed = allowedMimetypes.some(type => file.mimetype.startsWith(type) || file.mimetype === type);
+        
+        if (!isAllowed) {
+          return cb(new Error('Only images, PDFs, and documents are allowed for attachments'), false);
+        }
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid field name'), false);
+      }
+    },
+    limits: {
+      fileSize: 50 * 1024 * 1024 // 50MB max
+    }
+  }).fields([
+    { name: 'serviceImage', maxCount: 1 },
+    { name: 'attachments', maxCount: 10 } // Max 10 attachments
+  ]);
+
+  upload(req, res, (err) => {
+    if (err) {
+      // Clean up any uploaded files on error
+      if (req.files) {
+        if (req.files.serviceImage) {
+          req.files.serviceImage.forEach(file => {
+            if (fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+            }
+          });
+        }
+        if (req.files.attachments) {
+          req.files.attachments.forEach(file => {
+            if (fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+            }
+          });
+        }
+      }
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'Error uploading files'
+      });
+    }
+    
+    // Files are optional, so no validation needed
+    next();
+  });
+};
+
 module.exports = {
   uploadKycFiles,
   uploadKycFilesOptional,
@@ -467,6 +569,7 @@ module.exports = {
   uploadCategoryImage,
   uploadVendorProfileFiles,
   uploadVendorPhotos,
-  uploadVendorVideo
+  uploadVendorVideo,
+  uploadServiceFiles
 };
 

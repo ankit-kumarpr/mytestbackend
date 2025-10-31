@@ -61,6 +61,33 @@ const KycSchema = new mongoose.Schema({
     trim: true
   },
   
+  // Business Address (Full)
+  businessAddress: {
+    type: String,
+    trim: true
+  },
+  
+  // Location (Geospatial for radius search)
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: [0, 0]
+    }
+  },
+  
+  // Old fields (for backward compatibility - will be migrated to location object)
+  latitude: {
+    type: String
+  },
+  longitude: {
+    type: String
+  },
+  
   // Personal Data
   title: {
     type: String,
@@ -179,6 +206,10 @@ const KycSchema = new mongoose.Schema({
     default: Date.now
   }
 }, { timestamps: true });
+
+// Geospatial index for location-based queries
+KycSchema.index({ location: '2dsphere' });
+KycSchema.index({ status: 1, location: 1 });
 
 const Kyc = mongoose.model("Kyc", KycSchema);
 

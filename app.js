@@ -7,6 +7,13 @@ const authRoutes = require("./routes/authRoutes");
 const kycRoutes = require("./routes/kycRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const vendorProfileRoutes = require("./routes/vendorProfileRoutes");
+const serviceCatalogRoutes = require("./routes/serviceCatalogRoutes");
+const businessKeywordRoutes = require("./routes/businessKeywordRoutes");
+const leadRoutes = require("./routes/leadRoutes");
+const locationRoutes = require("./routes/locationRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+const profileRoutes = require("./routes/profileRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 
@@ -24,5 +31,12 @@ app.use("/api/auth", authRoutes);
 app.use("/api/kyc", kycRoutes);
 app.use("/api/category", categoryRoutes);
 app.use("/api/vendor/profile", vendorProfileRoutes);
+app.use("/api/service", serviceCatalogRoutes);
+app.use("/api/keyword", businessKeywordRoutes);
+app.use("/api/lead", leadRoutes);
+app.use("/api/location", locationRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/admin", adminRoutes);
 
 module.exports = app;

@@ -40,6 +40,41 @@ const UserSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    location: {
+        latitude: {
+            type: Number
+        },
+        longitude: {
+            type: Number
+        },
+        streetAddress: {
+            type: String,
+            trim: true
+        },
+        city: {
+            type: String,
+            trim: true
+        },
+        state: {
+            type: String,
+            trim: true
+        },
+        pincode: {
+            type: String,
+            trim: true,
+            validate: {
+                validator: function(v) {
+                    return !v || /^\d{6}$/.test(v);
+                },
+                message: 'Pincode must be exactly 6 digits'
+            }
+        },
+        country: {
+            type: String,
+            trim: true,
+            default: 'India'
+        }
+    },
     createdAt:{
         type:Date,
         default:Date.now,
