@@ -258,8 +258,12 @@ exports.login = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+<<<<<<< HEAD
         isVerified: user.isVerified,
         location: user.location || null
+=======
+        isVerified: user.isVerified
+>>>>>>> 3d6f991f060cb4276967460ef5844168a5751dc1
       },
       accessToken,
       refreshToken

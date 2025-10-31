@@ -1,33 +1,29 @@
-const nodemailer = require('nodemailer');
-const { FROM_EMAIL, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+const { Resend } = require('resend');
+const { RESEND_API_KEY, FROM_EMAIL } = process.env;
 
-const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
-  port: Number(SMTP_PORT || 587),
-  secure: false,
-  auth: {
-    user: SMTP_USER,
-    pass: SMTP_PASS
-  },
-});
+const resend = new Resend(RESEND_API_KEY);
 
+/**
+ * ✅ Send email using Resend API (works on Render)
+ */
 async function sendMail({ to, subject, html, text }) {
   try {
-    const info = await transporter.sendMail({
+    const data = await resend.emails.send({
       from: FROM_EMAIL,
       to,
       subject,
+      html,
       text,
-      html
     });
-    
-    console.log('✅ Email sent successfully:', info.messageId);
-    return info;
+
+    console.log('✅ Email sent successfully:', data.id || data);
+    return data;
   } catch (error) {
     console.error('❌ Email sending failed:', error.message);
     throw new Error(`Email sending failed: ${error.message}`);
   }
 }
+
 
 function otpEmailTemplate({ code }) {
   return `
