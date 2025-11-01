@@ -586,3 +586,449 @@ exports.getPlatformStatistics = async (req, res) => {
   }
 };
 
+// Update User Details (Admin)
+exports.updateUser = async (req, res) => {
+  try {
+    const adminId = req.user._id;
+    const { userId } = req.params;
+    const updateData = req.body;
+
+    // Check if admin or super admin
+    const admin = await User.findById(adminId);
+    if (!admin || (admin.role !== 'admin' && admin.role !== 'superadmin')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admins can update users'
+      });
+    }
+
+    // Get user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Prevent changing super admin role (only super admin can do that)
+    if (user.role === 'superadmin' && admin.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only super admin can modify super admin accounts'
+      });
+    }
+
+    // Fields that cannot be updated directly
+    const restrictedFields = ['_id', 'createdAt', '__v'];
+    
+    // Check if any restricted fields are being updated
+    const restrictedUpdateFields = Object.keys(updateData).filter(field => restrictedFields.includes(field));
+    if (restrictedUpdateFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot update restricted fields: ${restrictedUpdateFields.join(', ')}`
+      });
+    }
+
+    // Special handling for password (if provided)
+    if (updateData.password !== undefined) {
+      if (typeof updateData.password !== 'string' || updateData.password.length < 8) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 8 characters long'
+        });
+      }
+      // Hash password will be handled by pre-save hook
+      user.password = updateData.password;
+      user.cpassword = updateData.password; // Set cpassword to match
+      delete updateData.password; // Remove from updateData to avoid duplicate update
+      if (updateData.cpassword !== undefined) {
+        delete updateData.cpassword;
+      }
+    }
+
+    // Special validation for email (check uniqueness)
+    if (updateData.email !== undefined) {
+      if (typeof updateData.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updateData.email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid email address'
+        });
+      }
+      const existingUser = await User.findOne({ 
+        email: updateData.email.toLowerCase().trim(), 
+        _id: { $ne: userId } 
+      });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already in use'
+        });
+      }
+      updateData.email = updateData.email.toLowerCase().trim();
+    }
+
+    // Special validation for phone (must be 10 digits)
+    if (updateData.phone !== undefined) {
+      if (typeof updateData.phone !== 'string' || !/^\d{10}$/.test(updateData.phone)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number must be exactly 10 digits'
+        });
+      }
+    }
+
+    // Special handling for role (only superadmin can change roles)
+    if (updateData.role !== undefined) {
+      if (admin.role !== 'superadmin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only super admin can change user roles'
+        });
+      }
+      const validRoles = ['superadmin', 'admin', 'user', 'vendor', 'individual', 'salesperson'];
+      if (!validRoles.includes(updateData.role)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid role. Allowed roles: ${validRoles.join(', ')}`
+        });
+      }
+    }
+
+    // Update all provided fields dynamically
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined && !restrictedFields.includes(key)) {
+        // Handle nested location object
+        if (key === 'location' && typeof updateData[key] === 'object') {
+          user.location = { ...user.location, ...updateData[key] };
+        } else {
+          user[key] = updateData[key];
+        }
+      }
+    });
+
+    // Validate before saving (Mongoose will validate based on schema)
+    try {
+      await user.save();
+    } catch (validationError) {
+      if (validationError.name === 'ValidationError') {
+        const errors = Object.values(validationError.errors).map(err => err.message);
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          errors: errors
+        });
+      }
+      throw validationError;
+    }
+
+    // Get updated user without password
+    const updatedUser = await User.findById(userId).select('-password -cpassword');
+    
+    res.status(200).json({
+      success: true,
+      message: 'User updated successfully',
+      data: {
+        user: updatedUser.toObject()
+      }
+    });
+
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user',
+      error: error.message
+    });
+  }
+};
+
+// Delete User (Admin)
+exports.deleteUser = async (req, res) => {
+  try {
+    const adminId = req.user._id;
+    const { userId } = req.params;
+
+    // Check if admin or super admin
+    const admin = await User.findById(adminId);
+    if (!admin || (admin.role !== 'admin' && admin.role !== 'superadmin')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admins can delete users'
+      });
+    }
+
+    // Get user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Prevent deleting super admin (only super admin can do that)
+    if (user.role === 'superadmin' && admin.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only super admin can delete super admin accounts'
+      });
+    }
+
+    // Prevent self-deletion
+    if (user._id.toString() === adminId.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot delete your own account'
+      });
+    }
+
+    // Delete related data based on role
+    if (user.role === 'user') {
+      // Delete all leads created by this user
+      await Lead.deleteMany({ userId: user._id });
+    } else if (user.role === 'vendor') {
+      // Delete vendor's businesses, keywords, responses, and payments
+      await Kyc.deleteMany({ userId: user._id });
+      await BusinessKeyword.deleteMany({ vendorId: user._id });
+      await LeadResponse.deleteMany({ vendorId: user._id });
+      await Payment.deleteMany({ vendorId: user._id });
+    }
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({
+      success: true,
+      message: `${user.role.charAt(0).toUpperCase() + user.role.slice(1)} deleted successfully along with all related data`
+    });
+
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete user',
+      error: error.message
+    });
+  }
+};
+
+// Update Vendor Details (Admin)
+exports.updateVendor = async (req, res) => {
+  try {
+    const adminId = req.user._id;
+    const { vendorId } = req.params;
+    const updateData = req.body;
+
+    // Check if admin or super admin
+    const admin = await User.findById(adminId);
+    if (!admin || (admin.role !== 'admin' && admin.role !== 'superadmin')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admins can update vendors'
+      });
+    }
+
+    // Get vendor
+    const vendor = await User.findById(vendorId);
+    if (!vendor || vendor.role !== 'vendor') {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found'
+      });
+    }
+
+    // Fields that cannot be updated directly
+    const restrictedFields = ['_id', 'createdAt', '__v'];
+    
+    // Prevent role change for vendors (only superadmin can change roles)
+    if (updateData.role !== undefined) {
+      if (admin.role !== 'superadmin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only super admin can change vendor roles'
+        });
+      }
+      // If superadmin wants to change role, allow it
+      const validRoles = ['superadmin', 'admin', 'user', 'vendor', 'individual', 'salesperson'];
+      if (!validRoles.includes(updateData.role)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid role. Allowed roles: ${validRoles.join(', ')}`
+        });
+      }
+    }
+
+    // Check if any restricted fields are being updated
+    const restrictedUpdateFields = Object.keys(updateData).filter(field => restrictedFields.includes(field));
+    if (restrictedUpdateFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot update restricted fields: ${restrictedUpdateFields.join(', ')}`
+      });
+    }
+
+    // Special handling for password (if provided)
+    if (updateData.password !== undefined) {
+      if (typeof updateData.password !== 'string' || updateData.password.length < 8) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 8 characters long'
+        });
+      }
+      // Hash password will be handled by pre-save hook
+      vendor.password = updateData.password;
+      vendor.cpassword = updateData.password; // Set cpassword to match
+      delete updateData.password; // Remove from updateData to avoid duplicate update
+      if (updateData.cpassword !== undefined) {
+        delete updateData.cpassword;
+      }
+    }
+
+    // Special validation for email (check uniqueness)
+    if (updateData.email !== undefined) {
+      if (typeof updateData.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updateData.email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid email address'
+        });
+      }
+      const existingUser = await User.findOne({ 
+        email: updateData.email.toLowerCase().trim(), 
+        _id: { $ne: vendorId } 
+      });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already in use'
+        });
+      }
+      updateData.email = updateData.email.toLowerCase().trim();
+    }
+
+    // Special validation for phone (must be 10 digits)
+    if (updateData.phone !== undefined) {
+      if (typeof updateData.phone !== 'string' || !/^\d{10}$/.test(updateData.phone)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number must be exactly 10 digits'
+        });
+      }
+    }
+
+    // Update all provided fields dynamically
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined && !restrictedFields.includes(key)) {
+        // Handle nested location object
+        if (key === 'location' && typeof updateData[key] === 'object') {
+          vendor.location = { ...vendor.location, ...updateData[key] };
+        } else {
+          vendor[key] = updateData[key];
+        }
+      }
+    });
+
+    // Validate before saving (Mongoose will validate based on schema)
+    try {
+      await vendor.save();
+    } catch (validationError) {
+      if (validationError.name === 'ValidationError') {
+        const errors = Object.values(validationError.errors).map(err => err.message);
+        return res.status(400).json({
+          success: false,
+          message: 'Validation error',
+          errors: errors
+        });
+      }
+      throw validationError;
+    }
+
+    // Get updated vendor without password
+    const updatedVendor = await User.findById(vendorId).select('-password -cpassword');
+    
+    // Get vendor statistics
+    const totalBusinesses = await Kyc.countDocuments({ userId: vendor._id });
+    const approvedBusinesses = await Kyc.countDocuments({ userId: vendor._id, status: 'approved' });
+    const totalKeywords = await BusinessKeyword.countDocuments({ vendorId: vendor._id });
+
+    res.status(200).json({
+      success: true,
+      message: 'Vendor updated successfully',
+      data: {
+        vendor: updatedVendor.toObject(),
+        statistics: {
+          totalBusinesses,
+          approvedBusinesses,
+          totalKeywords
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Update vendor error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update vendor',
+      error: error.message
+    });
+  }
+};
+
+// Delete Vendor (Admin)
+exports.deleteVendor = async (req, res) => {
+  try {
+    const adminId = req.user._id;
+    const { vendorId } = req.params;
+
+    // Check if admin or super admin
+    const admin = await User.findById(adminId);
+    if (!admin || (admin.role !== 'admin' && admin.role !== 'superadmin')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admins can delete vendors'
+      });
+    }
+
+    // Get vendor
+    const vendor = await User.findById(vendorId);
+    if (!vendor || vendor.role !== 'vendor') {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found'
+      });
+    }
+
+    // Delete all related data
+    const deletedBusinesses = await Kyc.deleteMany({ userId: vendor._id });
+    const deletedKeywords = await BusinessKeyword.deleteMany({ vendorId: vendor._id });
+    const deletedResponses = await LeadResponse.deleteMany({ vendorId: vendor._id });
+    const deletedPayments = await Payment.deleteMany({ vendorId: vendor._id });
+
+    // Delete the vendor
+    await User.findByIdAndDelete(vendorId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Vendor deleted successfully along with all related data',
+      data: {
+        deletedRecords: {
+          businesses: deletedBusinesses.deletedCount,
+          keywords: deletedKeywords.deletedCount,
+          leadResponses: deletedResponses.deletedCount,
+          payments: deletedPayments.deletedCount
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Delete vendor error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete vendor',
+      error: error.message
+    });
+  }
+};
+
+

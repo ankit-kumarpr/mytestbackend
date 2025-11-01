@@ -3,6 +3,7 @@ const LeadResponse = require('../models/LeadResponse');
 const BusinessKeyword = require('../models/BusinessKeyword');
 const Kyc = require('../models/Kyc');
 const User = require('../models/User');
+const ServiceCatalog = require('../models/ServiceCatalog');
 
 // Search Keywords and Get Suggestions (Public/User) - No Radius
 exports.searchKeywordSuggestions = async (req, res) => {
@@ -187,10 +188,53 @@ exports.searchVendorsByKeyword = async (req, res) => {
     // Convert to array and sort by distance
     const businesses = Array.from(businessMap.values()).sort((a, b) => a.distance - b.distance);
 
+    // Get vendor IDs from businesses
+    const vendorIds = businesses.map(b => b.vendor._id.toString());
+
+    // Fetch all services for these vendors
+    const allServices = await ServiceCatalog.find({
+      vendorId: { $in: vendorIds }
+    }).sort({ createdAt: -1 });
+
+    // Group services by vendorId
+    const servicesByVendor = new Map();
+    allServices.forEach(service => {
+      const vendorId = service.vendorId.toString();
+      if (!servicesByVendor.has(vendorId)) {
+        servicesByVendor.set(vendorId, []);
+      }
+      servicesByVendor.get(vendorId).push({
+        _id: service._id,
+        serviceName: service.serviceName,
+        serviceImage: service.serviceImage,
+        priceType: service.priceType,
+        actualPrice: service.actualPrice,
+        discountPrice: service.discountPrice,
+        minPrice: service.minPrice,
+        maxPrice: service.maxPrice,
+        unit: service.unit,
+        quantityPricing: service.quantityPricing,
+        description: service.description,
+        attachments: service.attachments,
+        createdAt: service.createdAt,
+        updatedAt: service.updatedAt
+      });
+    });
+
+    // Add services to each business/vendor
+    const businessesWithServices = businesses.map(business => {
+      const vendorId = business.vendor._id.toString();
+      return {
+        ...business,
+        services: servicesByVendor.get(vendorId) || [],
+        totalServices: servicesByVendor.get(vendorId)?.length || 0
+      };
+    });
+
     // Pagination
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-    const paginatedBusinesses = businesses.slice(startIndex, endIndex);
+    const paginatedBusinesses = businessesWithServices.slice(startIndex, endIndex);
 
     res.status(200).json({
       success: true,
@@ -202,13 +246,13 @@ exports.searchVendorsByKeyword = async (req, res) => {
         },
         radius: parseInt(radius),
         radiusKm: (parseInt(radius) / 1000).toFixed(1),
-        totalVendors: businesses.length,
+        totalVendors: businessesWithServices.length,
         vendors: paginatedBusinesses,
         pagination: {
-          total: businesses.length,
+          total: businessesWithServices.length,
           page: parseInt(page),
           limit: parseInt(limit),
-          pages: Math.ceil(businesses.length / limit)
+          pages: Math.ceil(businessesWithServices.length / limit)
         }
       }
     });

@@ -14,6 +14,9 @@ const locationRoutes = require("./routes/locationRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const bannerRoutes = require("./routes/bannerRoutes");
+const offerBannerRoutes = require("./routes/offerBannerRoutes");
+const homeRoutes = require("./routes/homeRoutes");
 
 const app = express();
 
@@ -38,5 +41,8 @@ app.use("/api/location", locationRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/banner", bannerRoutes);
+app.use("/api/offer-banner", offerBannerRoutes);
+app.use("/api", homeRoutes);
 
 module.exports = app;

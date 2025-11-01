@@ -1,7 +1,16 @@
-const User = require('../models/User');
-const Otp = require('../models/Otp');
-const { sendMail, otpEmailTemplate, welcomeForUserTemplate, welcomeForAdminTemplate } = require('../utils/email');
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
+const User = require("../models/User");
+const Otp = require("../models/Otp");
+const {
+  sendMail,
+  otpEmailTemplate,
+  welcomeForUserTemplate,
+  welcomeForAdminTemplate,
+} = require("../utils/email");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} = require("../utils/jwt");
 
 // Generate random OTP
 function generateOTP() {
@@ -17,28 +26,28 @@ exports.registerUser = async (req, res) => {
     if (!name || !email || !phone || !password || !cpassword) {
       return res.status(400).json({
         success: false,
-        message: 'All fields are required'
+        message: "All fields are required",
       });
     }
 
     if (password !== cpassword) {
       return res.status(400).json({
         success: false,
-        message: 'Password and confirm password do not match'
+        message: "Password and confirm password do not match",
       });
     }
 
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters long'
+        message: "Password must be at least 8 characters long",
       });
     }
 
     if (!/^\d{10}$/.test(phone.toString())) {
       return res.status(400).json({
         success: false,
-        message: 'Phone number must be exactly 10 digits'
+        message: "Phone number must be exactly 10 digits",
       });
     }
 
@@ -47,14 +56,16 @@ exports.registerUser = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email already exists'
+        message: "User with this email already exists",
       });
     }
 
     // Generate OTP
     const otp = generateOTP();
     const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + parseInt(process.env.OTP_EXPIRES_MIN || 10));
+    expiresAt.setMinutes(
+      expiresAt.getMinutes() + parseInt(process.env.OTP_EXPIRES_MIN || 10)
+    );
 
     // Delete old OTPs for this email
     await Otp.deleteMany({ email });
@@ -64,7 +75,7 @@ exports.registerUser = async (req, res) => {
       email,
       otp,
       expiresAt,
-      verified: false
+      verified: false,
     });
 
     // Create user (not verified yet)
@@ -74,8 +85,8 @@ exports.registerUser = async (req, res) => {
       phone,
       password,
       cpassword,
-      role: 'user',
-      isVerified: false
+      role: "user",
+      isVerified: false,
     });
 
     // Send OTP email
@@ -83,28 +94,29 @@ exports.registerUser = async (req, res) => {
       const html = otpEmailTemplate({ code: otp });
       await sendMail({
         to: email,
-        subject: 'Email Verification - Gnet E-commerce',
-        html
+        subject: "Email Verification - Gnet E-commerce",
+        html,
       });
 
       res.status(201).json({
         success: true,
-        message: 'OTP sent to your email. Please verify to complete registration.',
-        userId: user._id
+        message:
+          "OTP sent to your email. Please verify to complete registration.",
+        userId: user._id,
       });
     } catch (emailError) {
       // If email fails, delete the user
       await User.findByIdAndDelete(user._id);
       return res.status(500).json({
         success: false,
-        message: 'Failed to send OTP email. Please try again.'
+        message: "Failed to send OTP email. Please try again.",
       });
     }
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Registration failed',
-      error: error.message
+      message: "Registration failed",
+      error: error.message,
     });
   }
 };
@@ -117,31 +129,31 @@ exports.verifyOtp = async (req, res) => {
     if (!email || !otp) {
       return res.status(400).json({
         success: false,
-        message: 'Email and OTP are required'
+        message: "Email and OTP are required",
       });
     }
 
     // Find OTP
     const otpRecord = await Otp.findOne({ email, otp });
-    
+
     if (!otpRecord) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid OTP'
+        message: "Invalid OTP",
       });
     }
 
     if (otpRecord.verified) {
       return res.status(400).json({
         success: false,
-        message: 'OTP already used'
+        message: "OTP already used",
       });
     }
 
     if (new Date() > otpRecord.expiresAt) {
       return res.status(400).json({
         success: false,
-        message: 'OTP has expired'
+        message: "OTP has expired",
       });
     }
 
@@ -159,7 +171,7 @@ exports.verifyOtp = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
@@ -172,17 +184,17 @@ exports.verifyOtp = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        password: 'Your chosen password',
-        customId
+        password: "Your chosen password",
+        customId,
       });
-      
+
       await sendMail({
         to: email,
-        subject: 'Welcome to Gnet E-commerce',
-        html
+        subject: "Welcome to Gnet E-commerce",
+        html,
       });
     } catch (emailError) {
-      console.error('Welcome email failed:', emailError);
+      console.error("Welcome email failed:", emailError);
       // Continue even if email fails
     }
 
@@ -191,21 +203,21 @@ exports.verifyOtp = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Email verified successfully. Welcome email sent!',
+      message: "Email verified successfully. Welcome email sent!",
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
         role: user.role,
-        isVerified: user.isVerified
-      }
+        isVerified: user.isVerified,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'OTP verification failed',
-      error: error.message
+      message: "OTP verification failed",
+      error: error.message,
     });
   }
 };
@@ -218,7 +230,7 @@ exports.login = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required'
+        message: "Email and password are required",
       });
     }
 
@@ -227,7 +239,7 @@ exports.login = async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: "Invalid email or password",
       });
     }
 
@@ -236,7 +248,7 @@ exports.login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: "Invalid email or password",
       });
     }
 
@@ -244,7 +256,7 @@ exports.login = async (req, res) => {
     const payload = {
       userId: user._id.toString(),
       email: user.email,
-      role: user.role
+      role: user.role,
     };
 
     const accessToken = generateAccessToken(payload);
@@ -258,25 +270,21 @@ exports.login = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-<<<<<<< HEAD
         isVerified: user.isVerified,
-        location: user.location || null
-=======
-        isVerified: user.isVerified
->>>>>>> 3d6f991f060cb4276967460ef5844168a5751dc1
+        location: user.location || null,
       },
       accessToken,
-      refreshToken
+      refreshToken,
     };
 
     // If user is vendor, include their business data (KYC)
-    if (user.role === 'vendor') {
-      const Kyc = require('../models/Kyc');
+    if (user.role === "vendor") {
+      const Kyc = require("../models/Kyc");
       const businesses = await Kyc.find({ userId: user._id })
-        .populate('approvedBy', 'name email')
-        .populate('rejectedBy', 'name email')
+        .populate("approvedBy", "name email")
+        .populate("rejectedBy", "name email")
         .sort({ createdAt: -1 });
-      
+
       responseData.businesses = businesses;
       responseData.totalBusinesses = businesses.length;
     }
@@ -284,14 +292,14 @@ exports.login = async (req, res) => {
     // Return user data (password already removed by toJSON method)
     res.status(200).json({
       success: true,
-      message: 'Login successful',
-      data: responseData
+      message: "Login successful",
+      data: responseData,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Login failed',
-      error: error.message
+      message: "Login failed",
+      error: error.message,
     });
   }
 };
@@ -305,30 +313,30 @@ exports.registerSuperAdmin = async (req, res) => {
     if (!name || !email || !phone || !password || !cpassword) {
       return res.status(400).json({
         success: false,
-        message: 'All fields are required'
+        message: "All fields are required",
       });
     }
 
     if (password !== cpassword) {
       return res.status(400).json({
         success: false,
-        message: 'Password and confirm password do not match'
+        message: "Password and confirm password do not match",
       });
     }
 
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters long'
+        message: "Password must be at least 8 characters long",
       });
     }
 
     // Check if super admin already exists
-    const existingSuperAdmin = await User.findOne({ role: 'superadmin' });
+    const existingSuperAdmin = await User.findOne({ role: "superadmin" });
     if (existingSuperAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'Super admin already exists'
+        message: "Super admin already exists",
       });
     }
 
@@ -337,7 +345,7 @@ exports.registerSuperAdmin = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email already exists'
+        message: "User with this email already exists",
       });
     }
 
@@ -348,8 +356,8 @@ exports.registerSuperAdmin = async (req, res) => {
       phone,
       password,
       cpassword,
-      role: 'superadmin',
-      isVerified: true // Super admin doesn't need verification
+      role: "superadmin",
+      isVerified: true, // Super admin doesn't need verification
     });
 
     const customId = user._id.toString().substring(0, 8).toUpperCase();
@@ -361,34 +369,34 @@ exports.registerSuperAdmin = async (req, res) => {
         email: user.email,
         phone: user.phone,
         password,
-        customId
+        customId,
       });
-      
+
       await sendMail({
         to: email,
-        subject: 'Welcome Super Admin - Gnet E-commerce',
-        html
+        subject: "Welcome Super Admin - Gnet E-commerce",
+        html,
       });
     } catch (emailError) {
-      console.error('Welcome email failed:', emailError);
+      console.error("Welcome email failed:", emailError);
     }
 
     res.status(201).json({
       success: true,
-      message: 'Super admin registered successfully',
+      message: "Super admin registered successfully",
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role
-      }
+        role: user.role,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Super admin registration failed',
-      error: error.message
+      message: "Super admin registration failed",
+      error: error.message,
     });
   }
 };
@@ -402,21 +410,21 @@ exports.registerAdmin = async (req, res) => {
     if (!name || !email || !phone || !password || !cpassword) {
       return res.status(400).json({
         success: false,
-        message: 'All fields are required'
+        message: "All fields are required",
       });
     }
 
     if (password !== cpassword) {
       return res.status(400).json({
         success: false,
-        message: 'Password and confirm password do not match'
+        message: "Password and confirm password do not match",
       });
     }
 
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters long'
+        message: "Password must be at least 8 characters long",
       });
     }
 
@@ -425,7 +433,7 @@ exports.registerAdmin = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email already exists'
+        message: "User with this email already exists",
       });
     }
 
@@ -436,8 +444,8 @@ exports.registerAdmin = async (req, res) => {
       phone,
       password,
       cpassword,
-      role: 'admin',
-      isVerified: true
+      role: "admin",
+      isVerified: true,
     });
 
     const customId = user._id.toString().substring(0, 8).toUpperCase();
@@ -449,34 +457,34 @@ exports.registerAdmin = async (req, res) => {
         email: user.email,
         phone: user.phone,
         password,
-        customId
+        customId,
       });
-      
+
       await sendMail({
         to: email,
-        subject: 'Welcome Admin - Gnet E-commerce',
-        html
+        subject: "Welcome Admin - Gnet E-commerce",
+        html,
       });
     } catch (emailError) {
-      console.error('Welcome email failed:', emailError);
+      console.error("Welcome email failed:", emailError);
     }
 
     res.status(201).json({
       success: true,
-      message: 'Admin registered successfully',
+      message: "Admin registered successfully",
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role
-      }
+        role: user.role,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Admin registration failed',
-      error: error.message
+      message: "Admin registration failed",
+      error: error.message,
     });
   }
 };
@@ -490,21 +498,21 @@ exports.registerSalesPerson = async (req, res) => {
     if (!name || !email || !phone || !password || !cpassword) {
       return res.status(400).json({
         success: false,
-        message: 'All fields are required'
+        message: "All fields are required",
       });
     }
 
     if (password !== cpassword) {
       return res.status(400).json({
         success: false,
-        message: 'Password and confirm password do not match'
+        message: "Password and confirm password do not match",
       });
     }
 
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 8 characters long'
+        message: "Password must be at least 8 characters long",
       });
     }
 
@@ -513,7 +521,7 @@ exports.registerSalesPerson = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this email already exists'
+        message: "User with this email already exists",
       });
     }
 
@@ -524,8 +532,8 @@ exports.registerSalesPerson = async (req, res) => {
       phone,
       password,
       cpassword,
-      role: 'salesperson',
-      isVerified: true
+      role: "salesperson",
+      isVerified: true,
     });
 
     const customId = user._id.toString().substring(0, 8).toUpperCase();
@@ -537,34 +545,34 @@ exports.registerSalesPerson = async (req, res) => {
         email: user.email,
         phone: user.phone,
         password,
-        customId
+        customId,
       });
-      
+
       await sendMail({
         to: email,
-        subject: 'Welcome Sales Person - Gnet E-commerce',
-        html
+        subject: "Welcome Sales Person - Gnet E-commerce",
+        html,
       });
     } catch (emailError) {
-      console.error('Welcome email failed:', emailError);
+      console.error("Welcome email failed:", emailError);
     }
 
     res.status(201).json({
       success: true,
-      message: 'Sales person registered successfully',
+      message: "Sales person registered successfully",
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role
-      }
+        role: user.role,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Sales person registration failed',
-      error: error.message
+      message: "Sales person registration failed",
+      error: error.message,
     });
   }
 };
@@ -577,7 +585,7 @@ exports.refreshToken = async (req, res) => {
     if (!refreshToken) {
       return res.status(400).json({
         success: false,
-        message: 'Refresh token is required'
+        message: "Refresh token is required",
       });
     }
 
@@ -588,7 +596,7 @@ exports.refreshToken = async (req, res) => {
     } catch (error) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired refresh token'
+        message: "Invalid or expired refresh token",
       });
     }
 
@@ -597,7 +605,7 @@ exports.refreshToken = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
 
@@ -605,31 +613,29 @@ exports.refreshToken = async (req, res) => {
     const payload = {
       userId: user._id.toString(),
       email: user.email,
-      role: user.role
+      role: user.role,
     };
 
     const newAccessToken = generateAccessToken(payload);
 
     res.status(200).json({
       success: true,
-      message: 'Access token refreshed successfully',
+      message: "Access token refreshed successfully",
       data: {
         accessToken: newAccessToken,
         user: {
           id: user._id,
           name: user.name,
           email: user.email,
-          role: user.role
-        }
-      }
+          role: user.role,
+        },
+      },
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Token refresh failed',
-      error: error.message
+      message: "Token refresh failed",
+      error: error.message,
     });
   }
 };
-

@@ -25,8 +25,7 @@ const ServiceCatalogSchema = new mongoose.Schema({
   vendorId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    required: true
   },
   serviceName: {
     type: String,
@@ -68,15 +67,7 @@ const ServiceCatalogSchema = new mongoose.Schema({
   },
   attachments: [{
     type: String // path/URL to attachment (image/pdf/etc)
-  }],
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
+  }]
 }, { timestamps: true });
 
 const ServiceCatalog = mongoose.model("ServiceCatalog", ServiceCatalogSchema);
