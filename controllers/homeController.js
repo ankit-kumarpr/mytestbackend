@@ -24,6 +24,1333 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c; // Distance in meters
 }
 
+// Helper function to generate static trending services
+function getStaticTrendingServices() {
+  return [
+    {
+      _id: 'static_trending_1',
+      serviceName: 'Home Cleaning Service',
+      serviceImage: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
+      priceType: 'fixed',
+      actualPrice: 1500,
+      discountPrice: 1200,
+      minPrice: null,
+      maxPrice: null,
+      unit: 'per service',
+      quantityPricing: null,
+      description: 'Professional home cleaning service with trained staff',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_1',
+        name: 'Clean Home Services',
+        email: 'info@cleanhome.com',
+        phone: '+91-9876543210',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://cleanhome.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      business: {
+        _id: 'static_business_1',
+        businessName: 'Clean Home Services',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        location: { type: 'Point', coordinates: [72.8777, 19.0760] }
+      },
+      allBusinesses: [],
+      distance: 2500,
+      distanceKm: '2.50'
+    },
+    {
+      _id: 'static_trending_2',
+      serviceName: 'Plumbing Services',
+      serviceImage: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=800',
+      priceType: 'range',
+      actualPrice: null,
+      discountPrice: null,
+      minPrice: 500,
+      maxPrice: 2000,
+      unit: 'per visit',
+      quantityPricing: null,
+      description: 'Expert plumbing solutions for all your needs',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_2',
+        name: 'Quick Fix Plumbing',
+        email: 'info@quickfix.com',
+        phone: '+91-9876543211',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://quickfix.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      business: {
+        _id: 'static_business_2',
+        businessName: 'Quick Fix Plumbing',
+        city: 'Delhi',
+        state: 'Delhi',
+        location: { type: 'Point', coordinates: [77.2090, 28.6139] }
+      },
+      allBusinesses: [],
+      distance: 3500,
+      distanceKm: '3.50'
+    },
+    {
+      _id: 'static_trending_3',
+      serviceName: 'Electrician Services',
+      serviceImage: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=800',
+      priceType: 'fixed',
+      actualPrice: 800,
+      discountPrice: 650,
+      minPrice: null,
+      maxPrice: null,
+      unit: 'per service',
+      quantityPricing: null,
+      description: 'Licensed electricians for all electrical work',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_3',
+        name: 'Power Electric',
+        email: 'info@powerelectric.com',
+        phone: '+91-9876543212',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://powerelectric.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      business: {
+        _id: 'static_business_3',
+        businessName: 'Power Electric',
+        city: 'Bangalore',
+        state: 'Karnataka',
+        location: { type: 'Point', coordinates: [77.5946, 12.9716] }
+      },
+      allBusinesses: [],
+      distance: 4200,
+      distanceKm: '4.20'
+    },
+    {
+      _id: 'static_trending_4',
+      serviceName: 'Carpentry Services',
+      serviceImage: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800',
+      priceType: 'range',
+      actualPrice: null,
+      discountPrice: null,
+      minPrice: 2000,
+      maxPrice: 10000,
+      unit: 'per project',
+      quantityPricing: null,
+      description: 'Custom furniture and carpentry work',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_4',
+        name: 'Wood Crafters',
+        email: 'info@woodcrafters.com',
+        phone: '+91-9876543213',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://woodcrafters.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      business: {
+        _id: 'static_business_4',
+        businessName: 'Wood Crafters',
+        city: 'Pune',
+        state: 'Maharashtra',
+        location: { type: 'Point', coordinates: [73.8567, 18.5204] }
+      },
+      allBusinesses: [],
+      distance: 1800,
+      distanceKm: '1.80'
+    },
+    {
+      _id: 'static_trending_5',
+      serviceName: 'Painting Services',
+      serviceImage: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800',
+      priceType: 'range',
+      actualPrice: null,
+      discountPrice: null,
+      minPrice: 3000,
+      maxPrice: 15000,
+      unit: 'per room',
+      quantityPricing: null,
+      description: 'Professional interior and exterior painting',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_5',
+        name: 'Color Masters',
+        email: 'info@colormasters.com',
+        phone: '+91-9876543214',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://colormasters.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      business: {
+        _id: 'static_business_5',
+        businessName: 'Color Masters',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        location: { type: 'Point', coordinates: [78.4867, 17.3850] }
+      },
+      allBusinesses: [],
+      distance: 3200,
+      distanceKm: '3.20'
+    },
+    {
+      _id: 'static_trending_6',
+      serviceName: 'AC Repair & Service',
+      serviceImage: 'https://images.unsplash.com/photo-1631542772215-3518b5d00b7d?w=800',
+      priceType: 'fixed',
+      actualPrice: 1200,
+      discountPrice: 999,
+      minPrice: null,
+      maxPrice: null,
+      unit: 'per service',
+      quantityPricing: null,
+      description: 'AC installation, repair and maintenance',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_6',
+        name: 'Cool Air Solutions',
+        email: 'info@coolair.com',
+        phone: '+91-9876543215',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://coolair.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      business: {
+        _id: 'static_business_6',
+        businessName: 'Cool Air Solutions',
+        city: 'Chennai',
+        state: 'Tamil Nadu',
+        location: { type: 'Point', coordinates: [80.2707, 13.0827] }
+      },
+      allBusinesses: [],
+      distance: 2800,
+      distanceKm: '2.80'
+    },
+    {
+      _id: 'static_trending_7',
+      serviceName: 'Appliance Repair',
+      serviceImage: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800',
+      priceType: 'range',
+      actualPrice: null,
+      discountPrice: null,
+      minPrice: 500,
+      maxPrice: 3000,
+      unit: 'per appliance',
+      quantityPricing: null,
+      description: 'Expert repair for all home appliances',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_7',
+        name: 'Fix It Right',
+        email: 'info@fixitright.com',
+        phone: '+91-9876543216',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://fixitright.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      business: {
+        _id: 'static_business_7',
+        businessName: 'Fix It Right',
+        city: 'Kolkata',
+        state: 'West Bengal',
+        location: { type: 'Point', coordinates: [88.3639, 22.5726] }
+      },
+      allBusinesses: [],
+      distance: 1900,
+      distanceKm: '1.90'
+    },
+    {
+      _id: 'static_trending_8',
+      serviceName: 'Pest Control Services',
+      serviceImage: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800',
+      priceType: 'fixed',
+      actualPrice: 2000,
+      discountPrice: 1500,
+      minPrice: null,
+      maxPrice: null,
+      unit: 'per treatment',
+      quantityPricing: null,
+      description: 'Professional pest control and extermination',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_8',
+        name: 'Pest Free Home',
+        email: 'info@pestfree.com',
+        phone: '+91-9876543217',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://pestfree.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      business: {
+        _id: 'static_business_8',
+        businessName: 'Pest Free Home',
+        city: 'Ahmedabad',
+        state: 'Gujarat',
+        location: { type: 'Point', coordinates: [72.5714, 23.0225] }
+      },
+      allBusinesses: [],
+      distance: 2400,
+      distanceKm: '2.40'
+    },
+    {
+      _id: 'static_trending_9',
+      serviceName: 'Flooring Services',
+      serviceImage: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800',
+      priceType: 'range',
+      actualPrice: null,
+      discountPrice: null,
+      minPrice: 5000,
+      maxPrice: 25000,
+      unit: 'per sq ft',
+      quantityPricing: null,
+      description: 'Tile, marble, and wooden flooring installation',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_9',
+        name: 'Perfect Floors',
+        email: 'info@perfectfloors.com',
+        phone: '+91-9876543218',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://perfectfloors.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      business: {
+        _id: 'static_business_9',
+        businessName: 'Perfect Floors',
+        city: 'Jaipur',
+        state: 'Rajasthan',
+        location: { type: 'Point', coordinates: [75.7873, 26.9124] }
+      },
+      allBusinesses: [],
+      distance: 3600,
+      distanceKm: '3.60'
+    },
+    {
+      _id: 'static_trending_10',
+      serviceName: 'RO Water Purifier Service',
+      serviceImage: 'https://images.unsplash.com/photo-1556912167-f556f1f39f0b?w=800',
+      priceType: 'fixed',
+      actualPrice: 800,
+      discountPrice: 600,
+      minPrice: null,
+      maxPrice: null,
+      unit: 'per service',
+      quantityPricing: null,
+      description: 'RO water purifier installation and maintenance',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_10',
+        name: 'Pure Water Solutions',
+        email: 'info@purewater.com',
+        phone: '+91-9876543219',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://purewater.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      business: {
+        _id: 'static_business_10',
+        businessName: 'Pure Water Solutions',
+        city: 'Lucknow',
+        state: 'Uttar Pradesh',
+        location: { type: 'Point', coordinates: [80.9462, 26.8467] }
+      },
+      allBusinesses: [],
+      distance: 2100,
+      distanceKm: '2.10'
+    }
+  ];
+}
+
+// Helper function to generate static popular services
+function getStaticPopularServices() {
+  return [
+    {
+      _id: 'static_popular_1',
+      serviceName: 'Carpentry Services',
+      serviceImage: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800',
+      priceType: 'range',
+      actualPrice: null,
+      discountPrice: null,
+      minPrice: 2000,
+      maxPrice: 10000,
+      unit: 'per project',
+      quantityPricing: null,
+      description: 'Custom furniture and carpentry work',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_11',
+        name: 'Wood Crafters',
+        email: 'info@woodcrafters.com',
+        phone: '+91-9876543213',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://woodcrafters.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      allBusinesses: []
+    },
+    {
+      _id: 'static_popular_2',
+      serviceName: 'Painting Services',
+      serviceImage: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800',
+      priceType: 'range',
+      actualPrice: null,
+      discountPrice: null,
+      minPrice: 3000,
+      maxPrice: 15000,
+      unit: 'per room',
+      quantityPricing: null,
+      description: 'Professional interior and exterior painting',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_12',
+        name: 'Color Masters',
+        email: 'info@colormasters.com',
+        phone: '+91-9876543214',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://colormasters.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      allBusinesses: []
+    },
+    {
+      _id: 'static_popular_3',
+      serviceName: 'AC Repair & Service',
+      serviceImage: 'https://images.unsplash.com/photo-1631542772215-3518b5d00b7d?w=800',
+      priceType: 'fixed',
+      actualPrice: 1200,
+      discountPrice: 999,
+      minPrice: null,
+      maxPrice: null,
+      unit: 'per service',
+      quantityPricing: null,
+      description: 'AC installation, repair and maintenance',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_13',
+        name: 'Cool Air Solutions',
+        email: 'info@coolair.com',
+        phone: '+91-9876543215',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://coolair.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      allBusinesses: []
+    },
+    {
+      _id: 'static_popular_4',
+      serviceName: 'Home Cleaning Service',
+      serviceImage: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
+      priceType: 'fixed',
+      actualPrice: 1500,
+      discountPrice: 1200,
+      minPrice: null,
+      maxPrice: null,
+      unit: 'per service',
+      quantityPricing: null,
+      description: 'Professional home cleaning service with trained staff',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_14',
+        name: 'Sparkle Clean',
+        email: 'info@sparkleclean.com',
+        phone: '+91-9876543222',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://sparkleclean.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      allBusinesses: []
+    },
+    {
+      _id: 'static_popular_5',
+      serviceName: 'Plumbing Services',
+      serviceImage: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=800',
+      priceType: 'range',
+      actualPrice: null,
+      discountPrice: null,
+      minPrice: 500,
+      maxPrice: 2000,
+      unit: 'per visit',
+      quantityPricing: null,
+      description: 'Expert plumbing solutions for all your needs',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_15',
+        name: 'Plumb Pro',
+        email: 'info@plumbpro.com',
+        phone: '+91-9876543223',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://plumbpro.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      allBusinesses: []
+    },
+    {
+      _id: 'static_popular_6',
+      serviceName: 'Electrician Services',
+      serviceImage: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=800',
+      priceType: 'fixed',
+      actualPrice: 800,
+      discountPrice: 650,
+      minPrice: null,
+      maxPrice: null,
+      unit: 'per service',
+      quantityPricing: null,
+      description: 'Licensed electricians for all electrical work',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_16',
+        name: 'Bright Electric',
+        email: 'info@brightelectric.com',
+        phone: '+91-9876543224',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://brightelectric.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      allBusinesses: []
+    },
+    {
+      _id: 'static_popular_7',
+      serviceName: 'Appliance Repair',
+      serviceImage: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800',
+      priceType: 'range',
+      actualPrice: null,
+      discountPrice: null,
+      minPrice: 500,
+      maxPrice: 3000,
+      unit: 'per appliance',
+      quantityPricing: null,
+      description: 'Expert repair for all home appliances',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_17',
+        name: 'Appliance Masters',
+        email: 'info@appliancemasters.com',
+        phone: '+91-9876543225',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://appliancemasters.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      allBusinesses: []
+    },
+    {
+      _id: 'static_popular_8',
+      serviceName: 'Pest Control Services',
+      serviceImage: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800',
+      priceType: 'fixed',
+      actualPrice: 2000,
+      discountPrice: 1500,
+      minPrice: null,
+      maxPrice: null,
+      unit: 'per treatment',
+      quantityPricing: null,
+      description: 'Professional pest control and extermination',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_18',
+        name: 'Pest Shield',
+        email: 'info@pestshield.com',
+        phone: '+91-9876543226',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://pestshield.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      allBusinesses: []
+    },
+    {
+      _id: 'static_popular_9',
+      serviceName: 'Flooring Services',
+      serviceImage: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800',
+      priceType: 'range',
+      actualPrice: null,
+      discountPrice: null,
+      minPrice: 5000,
+      maxPrice: 25000,
+      unit: 'per sq ft',
+      quantityPricing: null,
+      description: 'Tile, marble, and wooden flooring installation',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_19',
+        name: 'Floor Experts',
+        email: 'info@floorexperts.com',
+        phone: '+91-9876543227',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://floorexperts.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      allBusinesses: []
+    },
+    {
+      _id: 'static_popular_10',
+      serviceName: 'RO Water Purifier Service',
+      serviceImage: 'https://images.unsplash.com/photo-1556912167-f556f1f39f0b?w=800',
+      priceType: 'fixed',
+      actualPrice: 800,
+      discountPrice: 600,
+      minPrice: null,
+      maxPrice: null,
+      unit: 'per service',
+      quantityPricing: null,
+      description: 'RO water purifier installation and maintenance',
+      attachments: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: {
+        _id: 'static_vendor_20',
+        name: 'Aqua Pure',
+        email: 'info@aquapure.com',
+        phone: '+91-9876543228',
+        role: 'vendor',
+        isVerified: true,
+        vendorProfile: {
+          website: 'https://aquapure.com',
+          socialMediaLinks: {},
+          businessPhotos: [],
+          businessVideo: null
+        }
+      },
+      allBusinesses: []
+    }
+  ];
+}
+
+// Helper function to generate static vendors
+function getStaticVendors() {
+  return [
+    {
+      _id: 'static_vendor_near_1',
+      name: 'Home Services Pro',
+      email: 'info@homeservicespro.com',
+      phone: '+91-9876543220',
+      role: 'vendor',
+      isVerified: true,
+      vendorProfile: {
+        website: 'https://homeservicespro.com',
+        socialMediaLinks: {},
+        businessPhotos: [],
+        businessVideo: null
+      },
+      business: {
+        _id: 'static_business_near_1',
+        businessName: 'Home Services Pro',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        location: { type: 'Point', coordinates: [72.8777, 19.0760] }
+      },
+      allBusinesses: [],
+      distance: 1800,
+      distanceKm: '1.80',
+      totalServices: 15
+    },
+    {
+      _id: 'static_vendor_near_2',
+      name: 'Fix It All',
+      email: 'info@fixitall.com',
+      phone: '+91-9876543221',
+      role: 'vendor',
+      isVerified: true,
+      vendorProfile: {
+        website: 'https://fixitall.com',
+        socialMediaLinks: {},
+        businessPhotos: [],
+        businessVideo: null
+      },
+      business: {
+        _id: 'static_business_near_2',
+        businessName: 'Fix It All',
+        city: 'Delhi',
+        state: 'Delhi',
+        location: { type: 'Point', coordinates: [77.2090, 28.6139] }
+      },
+      allBusinesses: [],
+      distance: 2200,
+      distanceKm: '2.20',
+      totalServices: 12
+    },
+    {
+      _id: 'static_vendor_near_3',
+      name: 'Pro Services Hub',
+      email: 'info@proserviceshub.com',
+      phone: '+91-9876543229',
+      role: 'vendor',
+      isVerified: true,
+      vendorProfile: {
+        website: 'https://proserviceshub.com',
+        socialMediaLinks: {},
+        businessPhotos: [],
+        businessVideo: null
+      },
+      business: {
+        _id: 'static_business_near_3',
+        businessName: 'Pro Services Hub',
+        city: 'Bangalore',
+        state: 'Karnataka',
+        location: { type: 'Point', coordinates: [77.5946, 12.9716] }
+      },
+      allBusinesses: [],
+      distance: 1500,
+      distanceKm: '1.50',
+      totalServices: 18
+    },
+    {
+      _id: 'static_vendor_near_4',
+      name: 'Quick Fix Solutions',
+      email: 'info@quickfixsolutions.com',
+      phone: '+91-9876543230',
+      role: 'vendor',
+      isVerified: true,
+      vendorProfile: {
+        website: 'https://quickfixsolutions.com',
+        socialMediaLinks: {},
+        businessPhotos: [],
+        businessVideo: null
+      },
+      business: {
+        _id: 'static_business_near_4',
+        businessName: 'Quick Fix Solutions',
+        city: 'Pune',
+        state: 'Maharashtra',
+        location: { type: 'Point', coordinates: [73.8567, 18.5204] }
+      },
+      allBusinesses: [],
+      distance: 2100,
+      distanceKm: '2.10',
+      totalServices: 14
+    },
+    {
+      _id: 'static_vendor_near_5',
+      name: 'Expert Home Care',
+      email: 'info@experthomecare.com',
+      phone: '+91-9876543231',
+      role: 'vendor',
+      isVerified: true,
+      vendorProfile: {
+        website: 'https://experthomecare.com',
+        socialMediaLinks: {},
+        businessPhotos: [],
+        businessVideo: null
+      },
+      business: {
+        _id: 'static_business_near_5',
+        businessName: 'Expert Home Care',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        location: { type: 'Point', coordinates: [78.4867, 17.3850] }
+      },
+      allBusinesses: [],
+      distance: 1900,
+      distanceKm: '1.90',
+      totalServices: 16
+    },
+    {
+      _id: 'static_vendor_near_6',
+      name: 'All In One Services',
+      email: 'info@allinoneservices.com',
+      phone: '+91-9876543232',
+      role: 'vendor',
+      isVerified: true,
+      vendorProfile: {
+        website: 'https://allinoneservices.com',
+        socialMediaLinks: {},
+        businessPhotos: [],
+        businessVideo: null
+      },
+      business: {
+        _id: 'static_business_near_6',
+        businessName: 'All In One Services',
+        city: 'Chennai',
+        state: 'Tamil Nadu',
+        location: { type: 'Point', coordinates: [80.2707, 13.0827] }
+      },
+      allBusinesses: [],
+      distance: 2300,
+      distanceKm: '2.30',
+      totalServices: 20
+    },
+    {
+      _id: 'static_vendor_near_7',
+      name: 'Reliable Repairs',
+      email: 'info@reliablerepairs.com',
+      phone: '+91-9876543233',
+      role: 'vendor',
+      isVerified: true,
+      vendorProfile: {
+        website: 'https://reliablerepairs.com',
+        socialMediaLinks: {},
+        businessPhotos: [],
+        businessVideo: null
+      },
+      business: {
+        _id: 'static_business_near_7',
+        businessName: 'Reliable Repairs',
+        city: 'Kolkata',
+        state: 'West Bengal',
+        location: { type: 'Point', coordinates: [88.3639, 22.5726] }
+      },
+      allBusinesses: [],
+      distance: 1700,
+      distanceKm: '1.70',
+      totalServices: 13
+    },
+    {
+      _id: 'static_vendor_near_8',
+      name: 'Top Quality Services',
+      email: 'info@topqualityservices.com',
+      phone: '+91-9876543234',
+      role: 'vendor',
+      isVerified: true,
+      vendorProfile: {
+        website: 'https://topqualityservices.com',
+        socialMediaLinks: {},
+        businessPhotos: [],
+        businessVideo: null
+      },
+      business: {
+        _id: 'static_business_near_8',
+        businessName: 'Top Quality Services',
+        city: 'Ahmedabad',
+        state: 'Gujarat',
+        location: { type: 'Point', coordinates: [72.5714, 23.0225] }
+      },
+      allBusinesses: [],
+      distance: 2000,
+      distanceKm: '2.00',
+      totalServices: 17
+    },
+    {
+      _id: 'static_vendor_near_9',
+      name: 'Best Home Solutions',
+      email: 'info@besthomesolutions.com',
+      phone: '+91-9876543235',
+      role: 'vendor',
+      isVerified: true,
+      vendorProfile: {
+        website: 'https://besthomesolutions.com',
+        socialMediaLinks: {},
+        businessPhotos: [],
+        businessVideo: null
+      },
+      business: {
+        _id: 'static_business_near_9',
+        businessName: 'Best Home Solutions',
+        city: 'Jaipur',
+        state: 'Rajasthan',
+        location: { type: 'Point', coordinates: [75.7873, 26.9124] }
+      },
+      allBusinesses: [],
+      distance: 2400,
+      distanceKm: '2.40',
+      totalServices: 19
+    },
+    {
+      _id: 'static_vendor_near_10',
+      name: 'Premium Services',
+      email: 'info@premiumservices.com',
+      phone: '+91-9876543236',
+      role: 'vendor',
+      isVerified: true,
+      vendorProfile: {
+        website: 'https://premiumservices.com',
+        socialMediaLinks: {},
+        businessPhotos: [],
+        businessVideo: null
+      },
+      business: {
+        _id: 'static_business_near_10',
+        businessName: 'Premium Services',
+        city: 'Lucknow',
+        state: 'Uttar Pradesh',
+        location: { type: 'Point', coordinates: [80.9462, 26.8467] }
+      },
+      allBusinesses: [],
+      distance: 1600,
+      distanceKm: '1.60',
+      totalServices: 21
+    }
+  ];
+}
+
+// Helper function to generate static categories
+function getStaticCategories() {
+  return [
+    {
+      _id: 'static_category_1',
+      categoryName: 'Home Services',
+      categoryImage: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_category_2',
+      categoryName: 'Plumbing',
+      categoryImage: 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=800',
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_category_3',
+      categoryName: 'Electrical',
+      categoryImage: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=800',
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_category_4',
+      categoryName: 'Carpentry',
+      categoryImage: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800',
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_category_5',
+      categoryName: 'Painting',
+      categoryImage: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800',
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_category_6',
+      categoryName: 'AC Services',
+      categoryImage: 'https://images.unsplash.com/photo-1631542772215-3518b5d00b7d?w=800',
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_category_7',
+      categoryName: 'Appliance Repair',
+      categoryImage: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800',
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_category_8',
+      categoryName: 'Pest Control',
+      categoryImage: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800',
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_category_9',
+      categoryName: 'Flooring',
+      categoryImage: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800',
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_category_10',
+      categoryName: 'Water Purifier',
+      categoryImage: 'https://images.unsplash.com/photo-1556912167-f556f1f39f0b?w=800',
+      isActive: true,
+      createdBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  ];
+}
+
+// Helper function to generate static hero banners
+function getStaticHeroBanners() {
+  return [
+    {
+      _id: 'static_hero_1',
+      title: 'Welcome to Our Platform',
+      image: 'https://images.unsplash.com/photo-1556740758-90de374c12ad?w=1200',
+      link: '#',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      displayOrder: 1,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_hero_2',
+      title: 'Best Services Near You',
+      image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200',
+      link: '#',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      displayOrder: 2,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_hero_3',
+      title: 'Professional Home Services',
+      image: 'https://images.unsplash.com/photo-1556761175-4f46a9b84c59?w=1200',
+      link: '#',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      displayOrder: 3,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_hero_4',
+      title: 'Trusted Service Providers',
+      image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200',
+      link: '#',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      displayOrder: 4,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_hero_5',
+      title: 'Quality Services Guaranteed',
+      image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200',
+      link: '#',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      displayOrder: 5,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_hero_6',
+      title: 'Expert Technicians Available',
+      image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200',
+      link: '#',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      displayOrder: 6,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_hero_7',
+      title: '24/7 Service Support',
+      image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200',
+      link: '#',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      displayOrder: 7,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_hero_8',
+      title: 'Affordable Pricing',
+      image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200',
+      link: '#',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      displayOrder: 8,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_hero_9',
+      title: 'Book Your Service Now',
+      image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200',
+      link: '#',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      displayOrder: 9,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'static_hero_10',
+      title: 'Satisfaction Guaranteed',
+      image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200',
+      link: '#',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      isActive: true,
+      displayOrder: 10,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  ];
+}
+
+// Helper function to generate static offer banners
+function getStaticOfferBanners(place) {
+  const placeCapitalized = place.charAt(0).toUpperCase() + place.slice(1);
+  return [
+    {
+      _id: `static_offer_${place}_1`,
+      title: `Special Offer ${placeCapitalized} 1`,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      link: '#',
+      displayOrder: 1,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      place: place
+    },
+    {
+      _id: `static_offer_${place}_2`,
+      title: `Special Offer ${placeCapitalized} 2`,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      link: '#',
+      displayOrder: 2,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      place: place
+    },
+    {
+      _id: `static_offer_${place}_3`,
+      title: `Special Offer ${placeCapitalized} 3`,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      link: '#',
+      displayOrder: 3,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      place: place
+    },
+    {
+      _id: `static_offer_${place}_4`,
+      title: `Special Offer ${placeCapitalized} 4`,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      link: '#',
+      displayOrder: 4,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      place: place
+    },
+    {
+      _id: `static_offer_${place}_5`,
+      title: `Special Offer ${placeCapitalized} 5`,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      link: '#',
+      displayOrder: 5,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      place: place
+    },
+    {
+      _id: `static_offer_${place}_6`,
+      title: `Special Offer ${placeCapitalized} 6`,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      link: '#',
+      displayOrder: 6,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      place: place
+    },
+    {
+      _id: `static_offer_${place}_7`,
+      title: `Special Offer ${placeCapitalized} 7`,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      link: '#',
+      displayOrder: 7,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      place: place
+    },
+    {
+      _id: `static_offer_${place}_8`,
+      title: `Special Offer ${placeCapitalized} 8`,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      link: '#',
+      displayOrder: 8,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      place: place
+    },
+    {
+      _id: `static_offer_${place}_9`,
+      title: `Special Offer ${placeCapitalized} 9`,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      link: '#',
+      displayOrder: 9,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      place: place
+    },
+    {
+      _id: `static_offer_${place}_10`,
+      title: `Special Offer ${placeCapitalized} 10`,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800',
+      link: '#',
+      displayOrder: 10,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      place: place
+    }
+  ];
+}
+
 // Get Home/Dashboard Data (Public - No Auth Required)
 exports.getHomeData = async (req, res) => {
   try {
@@ -536,7 +1863,40 @@ exports.getHomeData = async (req, res) => {
       .sort({ purchaseDate: 1, displayOrder: 1 })
       .lean();
 
-    // ==================== RESPONSE ====================
+    // ==================== RESPONSE WITH STATIC FALLBACK ====================
+    // Use static data if arrays are empty
+    const finalTrendingServices = trendingServicesNearUser.length > 0 
+      ? trendingServicesNearUser 
+      : getStaticTrendingServices();
+    
+    const finalPopularServices = formattedPopularServices.length > 0 
+      ? formattedPopularServices 
+      : getStaticPopularServices();
+    
+    const finalTopVendors = topVendorsNearUser.length > 0 
+      ? topVendorsNearUser 
+      : getStaticVendors();
+    
+    const finalCategories = formattedCategories.length > 0 
+      ? formattedCategories 
+      : getStaticCategories();
+    
+    const finalHeroBanners = formattedHeroBanners.length > 0 
+      ? formattedHeroBanners 
+      : getStaticHeroBanners();
+    
+    const finalOfferBannersTop = offerBannersTop.length > 0 
+      ? offerBannersTop 
+      : getStaticOfferBanners('top');
+    
+    const finalOfferBannersMiddle = offerBannersMiddle.length > 0 
+      ? offerBannersMiddle 
+      : getStaticOfferBanners('middle');
+    
+    const finalOfferBannersBottom = offerBannersBottom.length > 0 
+      ? offerBannersBottom 
+      : getStaticOfferBanners('bottom');
+
     res.status(200).json({
       success: true,
       data: {
@@ -547,37 +1907,37 @@ exports.getHomeData = async (req, res) => {
           radiusKm: (userLocation.radius / 1000).toFixed(1)
         } : null,
         trendingServicesNearUser: {
-          count: trendingServicesNearUser.length,
-          services: trendingServicesNearUser
+          count: finalTrendingServices.length,
+          services: finalTrendingServices
         },
         mostPopularServices: {
-          count: formattedPopularServices.length,
-          services: formattedPopularServices
+          count: finalPopularServices.length,
+          services: finalPopularServices
         },
         topVendorsNearUser: {
-          count: topVendorsNearUser.length,
-          vendors: topVendorsNearUser
+          count: finalTopVendors.length,
+          vendors: finalTopVendors
         },
         categories: {
-          count: formattedCategories.length,
-          categories: formattedCategories
+          count: finalCategories.length,
+          categories: finalCategories
         },
         heroBanners: {
-          count: formattedHeroBanners.length,
-          banners: formattedHeroBanners
+          count: finalHeroBanners.length,
+          banners: finalHeroBanners
         },
         offerBanners: {
           top: {
-            count: offerBannersTop.length,
-            banners: offerBannersTop
+            count: finalOfferBannersTop.length,
+            banners: finalOfferBannersTop
           },
           middle: {
-            count: offerBannersMiddle.length,
-            banners: offerBannersMiddle
+            count: finalOfferBannersMiddle.length,
+            banners: finalOfferBannersMiddle
           },
           bottom: {
-            count: offerBannersBottom.length,
-            banners: offerBannersBottom
+            count: finalOfferBannersBottom.length,
+            banners: finalOfferBannersBottom
           }
         }
       }

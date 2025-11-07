@@ -559,6 +559,57 @@ const uploadServiceFiles = (req, res, next) => {
   });
 };
 
+// Storage configuration for Ticket Images
+const ticketImagesDir = path.join(uploadsDir, 'tickets');
+if (!fs.existsSync(ticketImagesDir)) {
+  fs.mkdirSync(ticketImagesDir, { recursive: true });
+}
+
+const ticketImageStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, ticketImagesDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'ticket-image-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter for ticket images
+const ticketImageFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed for ticket images'), false);
+  }
+};
+
+// Multer instance for ticket image (optional)
+const uploadTicketImage = multer({
+  storage: ticketImageStorage,
+  fileFilter: ticketImageFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB max for ticket images
+  }
+});
+
+// Middleware for ticket image upload (optional)
+const uploadTicketImageFile = (req, res, next) => {
+  const upload = uploadTicketImage.single('image');
+  
+  upload(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'Error uploading ticket image'
+      });
+    }
+    
+    // Image is optional, so no validation needed
+    next();
+  });
+};
+
 module.exports = {
   uploadKycFiles,
   uploadKycFilesOptional,
@@ -570,6 +621,8 @@ module.exports = {
   uploadVendorProfileFiles,
   uploadVendorPhotos,
   uploadVendorVideo,
-  uploadServiceFiles
+  uploadServiceFiles,
+  uploadTicketImageFile,
+  uploadTicketImage
 };
 

@@ -17,6 +17,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const bannerRoutes = require("./routes/bannerRoutes");
 const offerBannerRoutes = require("./routes/offerBannerRoutes");
 const homeRoutes = require("./routes/homeRoutes");
+const ticketRoutes = require("./routes/ticketRoutes");
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/banner", bannerRoutes);
 app.use("/api/offer-banner", offerBannerRoutes);
+app.use("/api/ticket", ticketRoutes);
 app.use("/api", homeRoutes);
 
 module.exports = app;
