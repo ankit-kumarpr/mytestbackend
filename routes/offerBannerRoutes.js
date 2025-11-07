@@ -46,7 +46,7 @@ router.delete('/admin/deletebanner/:bannerId', authenticate, deleteOfferBanner);
 
 // ==================== VENDOR/USER APIs ====================
 // Calculate price
-router.post('/calculate-price', authenticate, calculatePrice);
+router.post('/calculate-price',  calculatePrice);
 
 // Purchase banner place (payment first - no image required)
 router.post('/purchase-place', authenticate, purchaseBannerPlace);
