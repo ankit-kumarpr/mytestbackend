@@ -108,6 +108,15 @@ exports.setPlacePrices = async (req, res) => {
           price30Days: placePrices.price30Days / 100,
           updatedBy: placePrices.updatedBy,
           updatedAt: placePrices.updatedAt
+        },
+        dummyData: {
+          example: {
+            place: 'top',
+            price7Days: 500,
+            price14Days: 900,
+            price21Days: 1200,
+            price30Days: 1500
+          }
         }
       }
     });
@@ -154,7 +163,38 @@ exports.getAllPlacePrices = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        placePrices: prices
+        placePrices: prices,
+        dummyData: {
+          example: [
+            {
+              place: 'top',
+              price7Days: 500,
+              price14Days: 900,
+              price21Days: 1200,
+              price30Days: 1500,
+              updatedBy: { name: 'Admin User', email: 'admin@example.com' },
+              updatedAt: new Date()
+            },
+            {
+              place: 'middle',
+              price7Days: 300,
+              price14Days: 550,
+              price21Days: 750,
+              price30Days: 1000,
+              updatedBy: { name: 'Admin User', email: 'admin@example.com' },
+              updatedAt: new Date()
+            },
+            {
+              place: 'bottom',
+              price7Days: 200,
+              price14Days: 350,
+              price21Days: 500,
+              price30Days: 700,
+              updatedBy: { name: 'Admin User', email: 'admin@example.com' },
+              updatedAt: new Date()
+            }
+          ]
+        }
       }
     });
 
@@ -195,7 +235,30 @@ exports.getAllOfferBanners = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        banners: banners
+        banners: banners,
+        dummyData: {
+          example: [
+            {
+              _id: '507f1f77bcf86cd799439011',
+              place: 'top',
+              title: 'Summer Sale Banner',
+              image: '/uploads/offer-banners/offer-banner-1234567890.jpg',
+              link: 'https://example.com/summer-sale',
+              startDate: new Date('2024-06-01'),
+              endDate: new Date('2024-06-30'),
+              duration: 30,
+              price: 150000,
+              isPaid: true,
+              paymentStatus: 'completed',
+              isActive: true,
+              isBannerUploaded: true,
+              displayOrder: 1,
+              uploadedBy: { name: 'Vendor Name', email: 'vendor@example.com', role: 'vendor' },
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          ]
+        }
       }
     });
 
@@ -284,7 +347,21 @@ exports.updateOfferBanner = async (req, res) => {
       success: true,
       message: 'Banner updated successfully',
       data: {
-        banner: banner
+        banner: banner,
+        dummyData: {
+          example: {
+            _id: '507f1f77bcf86cd799439011',
+            place: 'top',
+            title: 'Updated Banner Title',
+            image: '/uploads/offer-banners/offer-banner-1234567890.jpg',
+            link: 'https://example.com/updated-link',
+            startDate: new Date('2024-06-01'),
+            endDate: new Date('2024-06-30'),
+            isActive: true,
+            displayOrder: 1,
+            uploadedBy: { name: 'Vendor Name', email: 'vendor@example.com', role: 'vendor' }
+          }
+        }
       }
     });
 
@@ -337,7 +414,15 @@ exports.deleteOfferBanner = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Banner deleted successfully'
+      message: 'Banner deleted successfully',
+      data: {
+        dummyData: {
+          example: {
+            deletedBannerId: '507f1f77bcf86cd799439011',
+            message: 'Banner and associated image file deleted successfully'
+          }
+        }
+      }
     });
 
   } catch (error) {
@@ -368,7 +453,32 @@ exports.getPlacePrices = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        placePrices: prices
+        placePrices: prices,
+        dummyData: {
+          example: [
+            {
+              place: 'top',
+              price7Days: 500,
+              price14Days: 900,
+              price21Days: 1200,
+              price30Days: 1500
+            },
+            {
+              place: 'middle',
+              price7Days: 300,
+              price14Days: 550,
+              price21Days: 750,
+              price30Days: 1000
+            },
+            {
+              place: 'bottom',
+              price7Days: 200,
+              price14Days: 350,
+              price21Days: 500,
+              price30Days: 700
+            }
+          ]
+        }
       }
     });
 
@@ -432,6 +542,15 @@ exports.calculatePrice = async (req, res) => {
         duration,
         priceInPaise,
         priceInRupees: priceInPaise / 100
+      },
+      dummyData: {
+        example: {
+          place: 'top',
+          duration: 7,
+          priceInPaise: 50000,
+          priceInRupees: 500,
+          currency: 'INR'
+        }
       }
     });
 
@@ -563,6 +682,19 @@ exports.purchaseBannerPlace = async (req, res) => {
           startDate: start,
           endDate: end,
           isBannerUploaded: false
+        },
+        dummyData: {
+          example: {
+            bannerId: '507f1f77bcf86cd799439011',
+            place: 'top',
+            duration: 30,
+            startDate: new Date('2024-06-01'),
+            endDate: new Date('2024-06-30'),
+            isBannerUploaded: false,
+            price: 0,
+            isPaid: true,
+            paymentStatus: 'completed'
+          }
         }
       });
     }
@@ -615,6 +747,20 @@ exports.purchaseBannerPlace = async (req, res) => {
         startDate: start,
         endDate: end,
         razorpayKeyId: process.env.RAZORPAY_KEY_ID
+      },
+      dummyData: {
+        example: {
+          bannerId: '507f1f77bcf86cd799439011',
+          orderId: 'order_MN1234567890',
+          amount: 150000,
+          amountRs: '1500.00',
+          currency: 'INR',
+          place: 'top',
+          duration: 30,
+          startDate: new Date('2024-06-01'),
+          endDate: new Date('2024-06-30'),
+          razorpayKeyId: 'rzp_test_1234567890'
+        }
       }
     });
 
@@ -693,6 +839,20 @@ exports.uploadBannerToPurchasedPlace = async (req, res) => {
       message: 'Banner uploaded successfully',
       data: {
         banner: banner
+      },
+      dummyData: {
+        example: {
+          _id: '507f1f77bcf86cd799439011',
+          place: 'top',
+          title: 'Summer Sale Banner',
+          image: '/uploads/offer-banners/offer-banner-1234567890.jpg',
+          link: 'https://example.com/summer-sale',
+          startDate: new Date('2024-06-01'),
+          endDate: new Date('2024-06-30'),
+          isBannerUploaded: true,
+          isActive: true,
+          uploadedBy: { name: 'Vendor Name', email: 'vendor@example.com', role: 'vendor' }
+        }
       }
     });
 
@@ -775,6 +935,19 @@ exports.verifyPaymentAndActivateBanner = async (req, res) => {
         endDate: banner.endDate,
         isBannerUploaded: banner.isBannerUploaded,
         message: 'Use upload-banner API to upload banner image'
+      },
+      dummyData: {
+        example: {
+          bannerId: '507f1f77bcf86cd799439011',
+          place: 'top',
+          duration: 30,
+          startDate: new Date('2024-06-01'),
+          endDate: new Date('2024-06-30'),
+          isBannerUploaded: false,
+          paymentStatus: 'completed',
+          paymentId: 'pay_MN1234567890',
+          isPaid: true
+        }
       }
     });
 
@@ -800,6 +973,46 @@ exports.getMyBanners = async (req, res) => {
       success: true,
       data: {
         banners: banners
+      },
+      dummyData: {
+        example: [
+          {
+            _id: '507f1f77bcf86cd799439011',
+            place: 'top',
+            title: 'My Banner 1',
+            image: '/uploads/offer-banners/offer-banner-1234567890.jpg',
+            link: 'https://example.com/banner1',
+            startDate: new Date('2024-06-01'),
+            endDate: new Date('2024-06-30'),
+            duration: 30,
+            price: 150000,
+            isPaid: true,
+            paymentStatus: 'completed',
+            isActive: true,
+            isBannerUploaded: true,
+            displayOrder: 1,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          },
+          {
+            _id: '507f1f77bcf86cd799439012',
+            place: 'middle',
+            title: 'My Banner 2',
+            image: '/uploads/offer-banners/offer-banner-1234567891.jpg',
+            link: 'https://example.com/banner2',
+            startDate: new Date('2024-07-01'),
+            endDate: new Date('2024-07-14'),
+            duration: 14,
+            price: 55000,
+            isPaid: true,
+            paymentStatus: 'completed',
+            isActive: true,
+            isBannerUploaded: true,
+            displayOrder: 2,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        ]
       }
     });
 
@@ -889,6 +1102,20 @@ exports.updateMyOfferBanner = async (req, res) => {
       message: 'Banner updated successfully',
       data: {
         banner: banner
+      },
+      dummyData: {
+        example: {
+          _id: '507f1f77bcf86cd799439011',
+          place: 'top',
+          title: 'Updated My Banner',
+          image: '/uploads/offer-banners/offer-banner-1234567890.jpg',
+          link: 'https://example.com/updated-link',
+          startDate: new Date('2024-06-01'),
+          endDate: new Date('2024-06-30'),
+          isActive: true,
+          displayOrder: 1,
+          uploadedBy: { name: 'My Name', email: 'myemail@example.com', role: 'vendor' }
+        }
       }
     });
 
@@ -942,7 +1169,15 @@ exports.deleteMyOfferBanner = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Banner deleted successfully'
+      message: 'Banner deleted successfully',
+      data: {
+        dummyData: {
+          example: {
+            deletedBannerId: '507f1f77bcf86cd799439011',
+            message: 'Your banner and associated image file deleted successfully'
+          }
+        }
+      }
     });
 
   } catch (error) {
@@ -986,6 +1221,32 @@ exports.getActiveBannersByPlace = async (req, res) => {
         place,
         banners: banners,
         count: banners.length
+      },
+      dummyData: {
+        example: {
+          place: 'top',
+          banners: [
+            {
+              _id: '507f1f77bcf86cd799439011',
+              title: 'Active Banner 1',
+              image: '/uploads/offer-banners/offer-banner-1234567890.jpg',
+              link: 'https://example.com/banner1',
+              displayOrder: 1,
+              startDate: new Date('2024-06-01'),
+              endDate: new Date('2024-06-30')
+            },
+            {
+              _id: '507f1f77bcf86cd799439012',
+              title: 'Active Banner 2',
+              image: '/uploads/offer-banners/offer-banner-1234567891.jpg',
+              link: 'https://example.com/banner2',
+              displayOrder: 2,
+              startDate: new Date('2024-06-15'),
+              endDate: new Date('2024-07-15')
+            }
+          ],
+          count: 2
+        }
       }
     });
 
