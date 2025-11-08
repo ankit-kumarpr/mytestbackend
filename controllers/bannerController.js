@@ -185,16 +185,45 @@ exports.updateBanner = async (req, res) => {
       });
     }
 
-    // Update fields
-    if (title !== undefined) banner.title = title;
-    if (link !== undefined) banner.link = link;
-    if (isActive !== undefined) banner.isActive = isActive;
-    if (displayOrder !== undefined) banner.displayOrder = displayOrder;
+    const isProvided = (value) =>
+      value !== undefined && value !== null && value !== '';
+
+    // Update fields only if provided
+    if (isProvided(title)) banner.title = title;
+    if (isProvided(link)) banner.link = link;
+
+    if (isProvided(isActive)) {
+      if (typeof isActive === 'string') {
+        banner.isActive = isActive.toLowerCase() === 'true';
+      } else {
+        banner.isActive = Boolean(isActive);
+      }
+    }
+
+    if (isProvided(displayOrder)) {
+      const parsedDisplayOrder =
+        typeof displayOrder === 'string'
+          ? Number(displayOrder)
+          : displayOrder;
+
+      if (!Number.isInteger(parsedDisplayOrder)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Display order must be an integer'
+        });
+      }
+
+      banner.displayOrder = parsedDisplayOrder;
+    }
 
     // Handle date updates
-    if (startDate !== undefined) {
-      const start = new Date(startDate);
-      if (isNaN(start.getTime())) {
+    if (isProvided(startDate)) {
+      const start =
+        typeof startDate === 'string' || startDate instanceof Date
+          ? new Date(startDate)
+          : null;
+
+      if (!start || isNaN(start.getTime())) {
         return res.status(400).json({
           success: false,
           message: 'Invalid start date format'
@@ -203,9 +232,13 @@ exports.updateBanner = async (req, res) => {
       banner.startDate = start;
     }
 
-    if (endDate !== undefined) {
-      const end = new Date(endDate);
-      if (isNaN(end.getTime())) {
+    if (isProvided(endDate)) {
+      const end =
+        typeof endDate === 'string' || endDate instanceof Date
+          ? new Date(endDate)
+          : null;
+
+      if (!end || isNaN(end.getTime())) {
         return res.status(400).json({
           success: false,
           message: 'Invalid end date format'
@@ -215,7 +248,7 @@ exports.updateBanner = async (req, res) => {
     }
 
     // Validate dates
-    if (banner.startDate > banner.endDate) {
+    if (banner.startDate && banner.endDate && banner.startDate > banner.endDate) {
       return res.status(400).json({
         success: false,
         message: 'Start date cannot be after end date'
