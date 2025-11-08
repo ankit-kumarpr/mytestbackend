@@ -700,10 +700,14 @@ exports.purchaseBannerPlace = async (req, res) => {
     }
 
     // For vendors/users, create payment order
+    const receipt = `ob_${place}_${Date.now().toString().slice(-8)}_${userId
+      .toString()
+      .slice(-6)}`;
+
     const options = {
       amount: priceInPaise,
       currency: 'INR',
-      receipt: `offer_banner_purchase_${place}_${userId}_${Date.now()}`,
+      receipt,
       notes: {
         userId: userId.toString(),
         place,
