@@ -21,6 +21,7 @@ const ticketRoutes = require("./routes/ticketRoutes");
 const privacyPolicyRoutes = require("./routes/privacyPolicyRoutes");
 const termsConditionRoutes = require("./routes/termsConditionRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use("/api/ticket", ticketRoutes);
 app.use("/api/privacy-policy", privacyPolicyRoutes);
 app.use("/api/terms-condition", termsConditionRoutes);
 app.use("/api/notification", notificationRoutes);
+app.use("/api/review", reviewRoutes);
 app.use("/api", homeRoutes);
 
 module.exports = app;

@@ -2,6 +2,7 @@ const VendorProfile = require('../models/VendorProfile');
 const User = require('../models/User');
 const Kyc = require('../models/Kyc');
 const BusinessKeyword = require('../models/BusinessKeyword');
+const Review = require('../models/Review');
 const fs = require('fs');
 const path = require('path');
 
