@@ -31,16 +31,16 @@ router.post('/create', authenticate, uploadTicketImageFile, createTicket);
 router.get('/my-tickets', authenticate, getMyTickets);
 
 // User/Vendor routes - Get single ticket by ID
-router.get('/:ticketId', authenticate, getTicketById);
+router.get('/singleticket/:ticketId', authenticate, getTicketById);
 
 // User/Vendor routes - Update ticket (only their own)
-router.put('/:ticketId', authenticate, uploadTicketImageFile, updateTicket);
+router.put('/updateticket/:ticketId', authenticate, uploadTicketImageFile, updateTicket);
 
 // User/Vendor routes - Delete ticket (only their own)
-router.delete('/:ticketId', authenticate, deleteTicket);
+router.delete('/deleteticket/:ticketId', authenticate, deleteTicket);
 
 // User/Vendor routes - Reply to own ticket
-router.post('/:ticketId/reply', authenticate, userReplyToTicket);
+router.post('/ownreply/:ticketId/reply', authenticate, userReplyToTicket);
 
 module.exports = router;
 

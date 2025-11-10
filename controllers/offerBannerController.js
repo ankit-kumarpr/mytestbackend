@@ -782,7 +782,7 @@ exports.purchaseBannerPlace = async (req, res) => {
 exports.uploadBannerToPurchasedPlace = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { bannerId } = req.params;
+    const bannerId = req.params.bannerId || req.body.bannerId;
     const { title, link } = req.body;
 
     // Validate required fields
@@ -793,8 +793,16 @@ exports.uploadBannerToPurchasedPlace = async (req, res) => {
       });
     }
 
+    if (!bannerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Banner ID is required'
+      });
+    }
+
     // Find purchased banner slot
     const banner = await OfferBanner.findById(bannerId);
+    conosle.log("banner now found error 1",banner);
     if (!banner) {
       return res.status(404).json({
         success: false,
@@ -880,7 +888,54 @@ exports.uploadBannerToPurchasedPlace = async (req, res) => {
 exports.verifyPaymentAndActivateBanner = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { bannerId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    const {
+      bannerId: bannerIdFromBody,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature
+    } = req.body;
+    const bannerId = req.params.bannerId || bannerIdFromBody;
+
+    if (!bannerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Banner ID is required'
+      });
+    }
+
+    const banner = await OfferBanner.findById(bannerId);
+
+    if (!banner) {
+      return res.status(404).json({
+        success: false,
+        message: 'Banner not found'
+      });
+    }
+
+    if (banner.uploadedBy.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only verify payment for your own banner'
+      });
+    }
+
+    // If already verified, return success quickly
+    if (banner.isPaid && banner.paymentStatus === 'completed') {
+      await banner.populate('uploadedBy', 'name email role');
+      return res.status(200).json({
+        success: true,
+        message: 'Payment already verified. You can upload your banner image.',
+        data: {
+          bannerId: banner._id,
+          place: banner.place,
+          duration: banner.duration,
+          startDate: banner.startDate,
+          endDate: banner.endDate,
+          isBannerUploaded: banner.isBannerUploaded,
+          message: 'Use upload-banner API to upload banner image'
+        }
+      });
+    }
 
     if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
       return res.status(400).json({
@@ -889,16 +944,10 @@ exports.verifyPaymentAndActivateBanner = async (req, res) => {
       });
     }
 
-    const banner = await OfferBanner.findOne({
-      _id: bannerId,
-      paymentOrderId: razorpayOrderId,
-      uploadedBy: userId
-    });
-
-    if (!banner) {
-      return res.status(404).json({
+    if (banner.paymentOrderId && banner.paymentOrderId !== razorpayOrderId) {
+      return res.status(400).json({
         success: false,
-        message: 'Banner not found'
+        message: 'Order ID does not match this banner purchase'
       });
     }
 

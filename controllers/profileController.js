@@ -110,6 +110,39 @@ exports.getMyProfile = async (req, res) => {
         recentActivity: recentLeads
       };
 
+      // Profile completion status (Vendor)
+      const completionWeights = {
+        basicInfo: 20,
+        verification: 20,
+        kycSubmitted: 20,
+        kycApproved: 15,
+        keywordsAdded: 10,
+        paymentsMade: 5,
+        leadResponses: 5,
+        acceptedLeads: 5
+      };
+
+      const completionCriteria = {
+        basicInfo: Boolean(user.name && user.phone),
+        verification: Boolean(user.isVerified),
+        kycSubmitted: businesses.length > 0,
+        kycApproved: businesses.some(b => b.status === 'approved'),
+        keywordsAdded: totalKeywords > 0,
+        paymentsMade: totalPayments > 0,
+        leadResponses: totalLeadsReceived > 0,
+        acceptedLeads: acceptedLeads > 0
+      };
+
+      const completionPercentage = Object.entries(completionWeights).reduce(
+        (sum, [key, weight]) => sum + (completionCriteria[key] ? weight : 0),
+        0
+      );
+
+      profileData.vendorData.completionStatus = {
+        percentage: completionPercentage,
+        criteria: completionCriteria
+      };
+
     } else if (user.role === 'user') {
       // User specific data
       

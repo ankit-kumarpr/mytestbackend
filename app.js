@@ -18,6 +18,9 @@ const bannerRoutes = require("./routes/bannerRoutes");
 const offerBannerRoutes = require("./routes/offerBannerRoutes");
 const homeRoutes = require("./routes/homeRoutes");
 const ticketRoutes = require("./routes/ticketRoutes");
+const privacyPolicyRoutes = require("./routes/privacyPolicyRoutes");
+const termsConditionRoutes = require("./routes/termsConditionRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
 
@@ -45,6 +48,9 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/banner", bannerRoutes);
 app.use("/api/offer-banner", offerBannerRoutes);
 app.use("/api/ticket", ticketRoutes);
+app.use("/api/privacy-policy", privacyPolicyRoutes);
+app.use("/api/terms-condition", termsConditionRoutes);
+app.use("/api/notification", notificationRoutes);
 app.use("/api", homeRoutes);
 
 module.exports = app;
