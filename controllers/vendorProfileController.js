@@ -1,8 +1,111 @@
 const VendorProfile = require('../models/VendorProfile');
 const User = require('../models/User');
 const Kyc = require('../models/Kyc');
+const BusinessKeyword = require('../models/BusinessKeyword');
 const fs = require('fs');
 const path = require('path');
+
+class ApiError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
+const allowedManagerRoles = ['vendor', 'admin', 'superadmin'];
+
+const defaultSocialMediaLinks = () => ({
+  facebook: '',
+  instagram: '',
+  twitter: '',
+  linkedin: '',
+  youtube: ''
+});
+
+const ensureVendorProfileExists = async (userId) => {
+  let profile = await VendorProfile.findOne({ userId });
+  if (profile) {
+    return profile;
+  }
+
+  profile = await VendorProfile.create({
+    userId,
+    website: '',
+    socialMediaLinks: defaultSocialMediaLinks(),
+    businessPhotos: [],
+    businessVideo: ''
+  });
+  return profile;
+};
+
+const ensureVendorAccess = async (req, vendorId) => {
+  const currentUserId = req.user._id.toString();
+  const currentUser = await User.findById(currentUserId);
+  if (!currentUser) {
+    throw new ApiError(404, 'Current user not found');
+  }
+
+  const targetUserId = vendorId || currentUserId;
+  const targetUser = await User.findById(targetUserId);
+
+  if (!targetUser) {
+    throw new ApiError(404, 'Vendor not found');
+  }
+
+  if (targetUser.role !== 'vendor') {
+    throw new ApiError(403, 'This user is not a vendor');
+  }
+
+  if (currentUser.role === 'vendor' && targetUserId !== currentUserId) {
+    throw new ApiError(403, 'You can only manage your own profile');
+  }
+
+  if (!allowedManagerRoles.includes(currentUser.role)) {
+    throw new ApiError(403, 'You do not have permission to manage vendor profiles');
+  }
+
+  const profile = await ensureVendorProfileExists(targetUserId);
+
+  return { targetUserId, targetUser, profile };
+};
+
+const pickSocialMediaUpdates = (body = {}) => {
+  const updates = {};
+  let hasAnyValue = false;
+  Object.keys(defaultSocialMediaLinks()).forEach((key) => {
+    if (body[key] !== undefined) {
+      const value = (body[key] || '').trim();
+      updates[key] = value;
+      if (value) {
+        hasAnyValue = true;
+      }
+    }
+  });
+  return { updates, hasAnyValue };
+};
+
+const hasExistingWebsite = (profile) =>
+  Boolean(profile.website && profile.website.trim());
+
+const hasExistingSocialLinks = (profile) =>
+  profile.socialMediaLinks &&
+  Object.values(profile.socialMediaLinks).some((value) => value && value.trim());
+
+const sendControllerError = (res, error, defaultMessage) => {
+  if (error instanceof ApiError) {
+    return res.status(error.status).json({
+      success: false,
+      message: error.message
+    });
+  }
+
+  console.error(defaultMessage, error);
+  return res.status(500).json({
+    success: false,
+    message: defaultMessage,
+    error: error.message
+  });
+};
 
 // Get Vendor Profile (public - anyone can view)
 exports.getVendorProfile = async (req, res) => {
@@ -92,6 +195,417 @@ exports.getVendorProfile = async (req, res) => {
       message: 'Failed to fetch vendor profile',
       error: error.message
     });
+  }
+};
+
+// -------------------------
+// Website Link CRUD
+// -------------------------
+
+exports.createWebsiteLink = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { website } = req.body;
+
+    if (!website || !website.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Website link is required'
+      });
+    }
+
+    const { targetUser, profile } = await ensureVendorAccess(req, vendorId);
+
+    if (hasExistingWebsite(profile)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Website link already exists. Use update API instead.'
+      });
+    }
+
+    profile.website = website.trim();
+    await profile.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Website link created successfully',
+      data: {
+        vendorId: targetUser._id,
+        website: profile.website
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to create website link');
+  }
+};
+
+exports.getWebsiteLink = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { targetUser, profile } = await ensureVendorAccess(req, vendorId);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        vendorId: targetUser._id,
+        website: profile.website || ''
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to fetch website link');
+  }
+};
+
+exports.updateWebsiteLink = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { website } = req.body;
+
+    if (!website || !website.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Website link is required'
+      });
+    }
+
+    const { targetUser, profile } = await ensureVendorAccess(req, vendorId);
+
+    profile.website = website.trim();
+    await profile.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Website link updated successfully',
+      data: {
+        vendorId: targetUser._id,
+        website: profile.website
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to update website link');
+  }
+};
+
+exports.deleteWebsiteLink = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { targetUser, profile } = await ensureVendorAccess(req, vendorId);
+
+    if (!hasExistingWebsite(profile)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Website link not found'
+      });
+    }
+
+    profile.website = '';
+    await profile.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Website link deleted successfully',
+      data: {
+        vendorId: targetUser._id,
+        website: profile.website
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to delete website link');
+  }
+};
+
+// -------------------------
+// Social Media Links CRUD
+// -------------------------
+
+exports.createSocialMediaLinks = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { targetUser, profile } = await ensureVendorAccess(req, vendorId);
+    const { updates, hasAnyValue } = pickSocialMediaUpdates(req.body);
+
+    if (!hasAnyValue) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one social media link is required'
+      });
+    }
+
+    const currentLinks = {
+      ...defaultSocialMediaLinks(),
+      ...(profile.socialMediaLinks || {})
+    };
+
+    let addedAny = false;
+    Object.entries(updates).forEach(([platform, value]) => {
+      if (!value) {
+        return;
+      }
+      const existing = currentLinks[platform];
+      if (!existing || !existing.trim()) {
+        currentLinks[platform] = value;
+        addedAny = true;
+      }
+    });
+
+    if (!addedAny) {
+      return res.status(400).json({
+        success: false,
+        message: 'Provided social media links already exist. Use update API to modify them.'
+      });
+    }
+
+    profile.socialMediaLinks = currentLinks;
+    await profile.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Social media links created successfully',
+      data: {
+        vendorId: targetUser._id,
+        socialMediaLinks: profile.socialMediaLinks
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to create social media links');
+  }
+};
+
+exports.getSocialMediaLinks = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { targetUser, profile } = await ensureVendorAccess(req, vendorId);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        vendorId: targetUser._id,
+        socialMediaLinks: profile.socialMediaLinks || defaultSocialMediaLinks()
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to fetch social media links');
+  }
+};
+
+exports.updateSocialMediaLinks = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { targetUser, profile } = await ensureVendorAccess(req, vendorId);
+    const { updates, hasAnyValue } = pickSocialMediaUpdates(req.body);
+
+    if (!hasAnyValue) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one social media link is required'
+      });
+    }
+
+    profile.socialMediaLinks = {
+      ...defaultSocialMediaLinks(),
+      ...profile.socialMediaLinks,
+      ...updates
+    };
+
+    await profile.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Social media links updated successfully',
+      data: {
+        vendorId: targetUser._id,
+        socialMediaLinks: profile.socialMediaLinks
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to update social media links');
+  }
+};
+
+exports.deleteSocialMediaLinks = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const platform = req.query.platform;
+
+    const { targetUser, profile } = await ensureVendorAccess(req, vendorId);
+
+    if (platform) {
+      if (!Object.prototype.hasOwnProperty.call(defaultSocialMediaLinks(), platform)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid social media platform'
+        });
+      }
+
+      const existingValue =
+        profile.socialMediaLinks && profile.socialMediaLinks[platform];
+
+      if (!existingValue || !existingValue.trim()) {
+        return res.status(404).json({
+          success: false,
+          message: `No ${platform} link found to delete`
+        });
+      }
+
+      profile.socialMediaLinks = {
+        ...defaultSocialMediaLinks(),
+        ...profile.socialMediaLinks,
+        [platform]: ''
+      };
+    } else {
+      if (!hasExistingSocialLinks(profile)) {
+        return res.status(404).json({
+          success: false,
+          message: 'Social media links not found'
+        });
+      }
+
+      profile.socialMediaLinks = defaultSocialMediaLinks();
+    }
+
+    await profile.save();
+
+    return res.status(200).json({
+      success: true,
+      message: platform
+        ? `Social media link (${platform}) deleted successfully`
+        : 'All social media links deleted successfully',
+      data: {
+        vendorId: targetUser._id,
+        socialMediaLinks: profile.socialMediaLinks
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to delete social media links');
+  }
+};
+
+// -------------------------
+// Business Details
+// -------------------------
+
+exports.getBusinessDetails = async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    const currentUser = await User.findById(req.user._id);
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Current user not found'
+      });
+    }
+
+    if (!businessId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Business ID is required'
+      });
+    }
+
+    const business = await Kyc.findById(businessId)
+      .populate('userId', 'name email phone role isVerified')
+      .populate('approvedBy', 'name email role')
+      .populate('rejectedBy', 'name email role');
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: 'Business not found'
+      });
+    }
+
+    const isAdmin = currentUser.role === 'admin' || currentUser.role === 'superadmin';
+    const isOwner =
+      currentUser.role === 'vendor' &&
+      business.userId &&
+      business.userId._id.toString() === currentUser._id.toString();
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to view this business'
+      });
+    }
+
+    const keywords = await BusinessKeyword.find({ businessId: business._id })
+      .sort({ createdAt: -1 });
+
+    const responseData = {
+      business: {
+        id: business._id,
+        userId: business.userId?._id,
+        businessName: business.businessName,
+        gstNumber: business.gstNumber,
+        contactPerson: business.contactPerson,
+        title: business.title,
+        email: business.email,
+        mobileNumber: business.mobileNumber,
+        whatsappNumber: business.whatsappNumber,
+        workingDays: business.workingDays,
+        businessHoursOpen: business.businessHoursOpen,
+        businessHoursClose: business.businessHoursClose,
+        address: {
+          plotNo: business.plotNo,
+          buildingName: business.buildingName,
+          street: business.street,
+          landmark: business.landmark,
+          area: business.area,
+          city: business.city,
+          state: business.state,
+          pincode: business.pincode,
+          fullAddress: business.businessAddress || [
+            business.plotNo,
+            business.buildingName,
+            business.street,
+            business.area,
+            business.city,
+            business.state,
+            business.pincode
+          ]
+            .filter(Boolean)
+            .join(', ')
+        },
+        location: {
+          type: business.location?.type || 'Point',
+          coordinates: business.location?.coordinates || [
+            business.longitude ? Number(business.longitude) : 0,
+            business.latitude ? Number(business.latitude) : 0
+          ]
+        },
+        documents: {
+          aadharNumber: business.aadharNumber,
+          aadharImage: business.aadharImage,
+          videoKyc: business.videoKyc
+        },
+        status: business.status,
+        rejection: {
+          rejectedBy: business.rejectedBy || null,
+          rejectionReason: business.rejectionReason || '',
+          rejectedAt: business.rejectedAt
+        },
+        approval: {
+          approvedBy: business.approvedBy || null,
+          approvedAt: business.approvedAt
+        },
+        createdAt: business.createdAt,
+        updatedAt: business.updatedAt
+      },
+      owner: business.userId || null,
+      keywords: keywords.map((item) => ({
+        id: item._id,
+        keyword: item.keyword,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt
+      }))
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: responseData
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to fetch business details');
   }
 };
 
