@@ -11,8 +11,25 @@ const resolveUploadFilePath = (storedPath) => {
   if (!storedPath || typeof storedPath !== 'string') {
     return null;
   }
-  const normalizedPath = storedPath.replace(/^\/+/, '');
+  if (/^https?:\/\//i.test(storedPath)) {
+    return null;
+  }
+  const normalizedPath = storedPath.replace(/^\/+/, '').trim();
+  if (!normalizedPath) {
+    return null;
+  }
   return path.join(__dirname, '..', normalizedPath);
+};
+
+const safeDeleteFile = (storedPath) => {
+  try {
+    const filePath = resolveUploadFilePath(storedPath);
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (fileError) {
+    console.warn('Failed to delete file:', storedPath, fileError);
+  }
 };
 
 // Initialize Razorpay
@@ -341,10 +358,7 @@ exports.updateOfferBanner = async (req, res) => {
 
     // Handle image update
     if (req.file) {
-      const oldImagePath = resolveUploadFilePath(banner.image);
-      if (oldImagePath && fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
-      }
+      safeDeleteFile(banner.image);
       banner.image = `/uploads/offer-banners/${req.file.filename}`;
     }
 
@@ -413,10 +427,7 @@ exports.deleteOfferBanner = async (req, res) => {
     }
 
     // Delete image file
-    const imagePath = resolveUploadFilePath(banner.image);
-    if (imagePath && fs.existsSync(imagePath)) {
-      fs.unlinkSync(imagePath);
-    }
+    safeDeleteFile(banner.image);
 
     await OfferBanner.findByIdAndDelete(bannerId);
 
@@ -837,10 +848,7 @@ exports.uploadBannerToPurchasedPlace = async (req, res) => {
     // Check if banner already uploaded
     if (banner.isBannerUploaded && banner.image) {
       // Delete old image
-      const oldImagePath = resolveUploadFilePath(banner.image);
-      if (oldImagePath && fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
-      }
+      safeDeleteFile(banner.image);
     }
 
     // Update banner with image
@@ -1148,10 +1156,7 @@ exports.updateMyOfferBanner = async (req, res) => {
 
     // Handle image update
     if (req.file) {
-      const oldImagePath = resolveUploadFilePath(banner.image);
-      if (oldImagePath && fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
-      }
+      safeDeleteFile(banner.image);
       banner.image = `/uploads/offer-banners/${req.file.filename}`;
     }
 
@@ -1220,10 +1225,7 @@ exports.deleteMyOfferBanner = async (req, res) => {
     }
 
     // Delete image file
-    const imagePath = resolveUploadFilePath(banner.image);
-    if (imagePath && fs.existsSync(imagePath)) {
-      fs.unlinkSync(imagePath);
-    }
+    safeDeleteFile(banner.image);
 
     // Delete banner
     await OfferBanner.findByIdAndDelete(bannerId);
