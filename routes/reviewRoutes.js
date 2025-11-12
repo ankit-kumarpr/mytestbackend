@@ -6,23 +6,35 @@ const {
   deleteReview,
   getVendorReviews,
   getAllReviews,
+  approveReview,
+  rejectReview,
+  getMyReviews,
 } = require("../controllers/reviewController");
-const { authenticate } = require("../middelware/auth");
+const { authenticate, authorize } = require("../middelware/auth");
 
-// Public - get vendor reviews
-router.get("/vendor/:vendorId", getVendorReviews);
+// Public - get vendor reviews (only approved reviews)
+router.get("/getvendorreviews/:vendorId", getVendorReviews);
 
-// Admin - get all reviews
-router.get("/allreviews", authenticate, getAllReviews);
+// User - get my reviews
+router.get("/my-reviews", authenticate, getMyReviews);
 
-// User - create review for vendor
+// User - create review for vendor (requires enquiry or received service)
 router.post("/vendor/:vendorId", authenticate, createVendorReview);
 
-// Update review (user can update own, admin/superadmin can update any)
+// User - update own review
 router.put("/updatereview/:reviewId", authenticate, updateReview);
 
-// Delete review (user can delete own, admin/superadmin can delete any)
+// User - delete own review
 router.delete("/deletereview/:reviewId", authenticate, deleteReview);
+
+// Admin - get all reviews (with optional status filter)
+router.get("/allreviews", authenticate, getAllReviews);
+
+// Admin - approve review
+router.put("/approve/:reviewId", authenticate, authorize("admin", "superadmin"), approveReview);
+
+// Admin - reject review
+router.put("/reject/:reviewId", authenticate, authorize("admin", "superadmin"), rejectReview);
 
 module.exports = router;
 

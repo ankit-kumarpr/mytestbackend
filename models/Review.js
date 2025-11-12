@@ -25,6 +25,30 @@ const ReviewSchema = new mongoose.Schema(
       trim: true,
       maxlength: 1000,
     },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+      index: true,
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
+    },
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    rejectedAt: {
+      type: Date,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+    },
     isDeleted: {
       type: Boolean,
       default: false,
@@ -47,15 +71,20 @@ const ReviewSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Unique index: one review per user per vendor (only if not deleted)
 ReviewSchema.index(
-  { vendorId: 1, userId: 1 },
+  { userId: 1, vendorId: 1 },
   {
     unique: true,
     partialFilterExpression: { isDeleted: false },
   }
 );
 
-ReviewSchema.index({ vendorId: 1, createdAt: -1 });
+// Index for vendor reviews (approved only)
+ReviewSchema.index({ vendorId: 1, status: 1, createdAt: -1 });
+
+// Index for admin to see pending reviews
+ReviewSchema.index({ status: 1, createdAt: -1 });
 
 const Review = mongoose.model("Review", ReviewSchema);
 
