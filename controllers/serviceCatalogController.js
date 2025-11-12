@@ -289,9 +289,15 @@ exports.updateService = async (req, res) => {
       updateData.serviceImage = req.files.serviceImage[0].path;
     }
 
-    // Handle attachments update
+    // Handle attachments update - append new attachments to existing ones
     if (req.files && req.files.attachments) {
-      updateData.attachments = req.files.attachments.map(file => file.path);
+      const newAttachments = req.files.attachments.map(file => file.path);
+      // If service already has attachments, append new ones
+      if (service.attachments && service.attachments.length > 0) {
+        updateData.attachments = [...service.attachments, ...newAttachments];
+      } else {
+        updateData.attachments = newAttachments;
+      }
     }
 
     // Update price fields based on type
@@ -417,18 +423,31 @@ exports.deleteService = async (req, res) => {
   }
 };
 
-// Delete single attachment from service
+// Delete attachment(s) from service - supports single or multiple attachments
 exports.deleteAttachment = async (req, res) => {
   try {
     const { serviceId } = req.params;
-    const { attachmentPath } = req.body;
+    const { attachmentPaths } = req.body; // Can be a single path string or array of paths
     const currentUserId = req.user._id;
     const currentUser = await User.findById(currentUserId);
 
-    if (!attachmentPath) {
+    // Convert single path to array for uniform handling
+    let pathsToDelete = [];
+    if (attachmentPaths) {
+      pathsToDelete = Array.isArray(attachmentPaths) ? attachmentPaths : [attachmentPaths];
+    }
+
+    // Also support the old 'attachmentPath' field for backward compatibility
+    if (!pathsToDelete.length && req.body.attachmentPath) {
+      pathsToDelete = Array.isArray(req.body.attachmentPath) 
+        ? req.body.attachmentPath 
+        : [req.body.attachmentPath];
+    }
+
+    if (!pathsToDelete || pathsToDelete.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Attachment path is required'
+        message: 'Attachment path(s) are required. Send attachmentPaths as array or single string.'
       });
     }
 
@@ -449,34 +468,66 @@ exports.deleteAttachment = async (req, res) => {
       });
     }
 
-    // Check if attachment exists in service
-    if (!service.attachments.includes(attachmentPath)) {
+    // Validate that all paths exist in service attachments
+    const missingPaths = pathsToDelete.filter(path => !service.attachments.includes(path));
+    if (missingPaths.length > 0) {
       return res.status(404).json({
         success: false,
-        message: 'Attachment not found in this service'
+        message: `Some attachments not found in this service: ${missingPaths.join(', ')}`,
+        missingPaths
       });
     }
 
-    // Delete file from filesystem
-    if (fs.existsSync(attachmentPath)) {
-      fs.unlinkSync(attachmentPath);
-    }
+    // Delete files from filesystem and track results
+    const deletedPaths = [];
+    const failedPaths = [];
 
-    // Remove from array
-    service.attachments = service.attachments.filter(att => att !== attachmentPath);
+    pathsToDelete.forEach(attachmentPath => {
+      try {
+        // Delete file from filesystem
+        if (fs.existsSync(attachmentPath)) {
+          fs.unlinkSync(attachmentPath);
+          deletedPaths.push(attachmentPath);
+        } else {
+          // File doesn't exist on filesystem, but remove from database anyway
+          deletedPaths.push(attachmentPath);
+        }
+      } catch (error) {
+        console.error(`Error deleting file ${attachmentPath}:`, error);
+        failedPaths.push(attachmentPath);
+      }
+    });
+
+    // Remove deleted attachments from array
+    service.attachments = service.attachments.filter(att => !deletedPaths.includes(att));
     await service.save();
 
-    res.status(200).json({
+    // Prepare response message
+    const message = deletedPaths.length === 1
+      ? 'Attachment deleted successfully'
+      : `${deletedPaths.length} attachments deleted successfully`;
+
+    const response = {
       success: true,
-      message: 'Attachment deleted successfully',
+      message,
+      deletedCount: deletedPaths.length,
+      deletedPaths,
       data: service
-    });
+    };
+
+    // Include failed paths if any
+    if (failedPaths.length > 0) {
+      response.failedPaths = failedPaths;
+      response.warning = `Some files could not be deleted from filesystem: ${failedPaths.join(', ')}`;
+    }
+
+    res.status(200).json(response);
 
   } catch (error) {
     console.error('Delete attachment error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete attachment',
+      message: 'Failed to delete attachment(s)',
       error: error.message
     });
   }
