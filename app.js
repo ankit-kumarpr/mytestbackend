@@ -22,6 +22,8 @@ const privacyPolicyRoutes = require("./routes/privacyPolicyRoutes");
 const termsConditionRoutes = require("./routes/termsConditionRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
+const favoriteRoutes = require("./routes/favoriteRoutes");
+const savedRoutes = require("./routes/savedRoutes");
 
 const app = express();
 
@@ -53,6 +55,8 @@ app.use("/api/privacy-policy", privacyPolicyRoutes);
 app.use("/api/terms-condition", termsConditionRoutes);
 app.use("/api/notification", notificationRoutes);
 app.use("/api/review", reviewRoutes);
+app.use("/api/favorite", favoriteRoutes);
+app.use("/api/saved", savedRoutes);
 app.use("/api", homeRoutes);
 
 module.exports = app;
