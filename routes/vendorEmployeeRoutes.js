@@ -4,7 +4,8 @@ const {
   addIndividual,
   removeIndividual,
   getMyEmployees,
-  getIndividualProfile
+  getIndividualProfile,
+  searchIndividuals
 } = require('../controllers/vendorEmployeeController');
 const { authenticate } = require('../middelware/auth');
 
@@ -13,6 +14,7 @@ router.post('/add', authenticate, addIndividual);
 router.delete('/remove/:individualId', authenticate, removeIndividual);
 router.get('/my-employees', authenticate, getMyEmployees);
 router.get('/profile/:individualId', authenticate, getIndividualProfile);
+router.get('/search', authenticate, searchIndividuals); // Search individuals
 
 module.exports = router;
 

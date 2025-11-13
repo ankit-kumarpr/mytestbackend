@@ -11,18 +11,19 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// Create Razorpay Order for Lead Acceptance (Vendor)
+// Create Razorpay Order for Lead Acceptance (Vendor/Individual)
 exports.createLeadAcceptanceOrder = async (req, res) => {
   try {
     const vendorId = req.user._id;
     const { leadResponseId } = req.params;
 
-    // Check if user is vendor
+    // Check if user is vendor or individual
+    const { isVendorOrIndividual } = require('../utils/roleHelper');
     const vendor = await User.findById(vendorId);
-    if (!vendor || vendor.role !== 'vendor') {
+    if (!vendor || !isVendorOrIndividual(vendor)) {
       return res.status(403).json({
         success: false,
-        message: 'Only vendors can accept leads'
+        message: 'Only vendors or individuals can accept leads'
       });
     }
 
@@ -124,11 +125,21 @@ exports.createLeadAcceptanceOrder = async (req, res) => {
   }
 };
 
-// Verify Payment and Accept Lead (Vendor)
+// Verify Payment and Accept Lead (Vendor/Individual)
 exports.verifyPaymentAndAcceptLead = async (req, res) => {
   try {
     const vendorId = req.user._id;
     const { leadResponseId } = req.params;
+    
+    // Check if user is vendor or individual
+    const { isVendorOrIndividual } = require('../utils/roleHelper');
+    const user = await User.findById(vendorId);
+    if (!user || !isVendorOrIndividual(user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only vendors or individuals can verify payment and accept leads'
+      });
+    }
     const { 
       razorpayOrderId, 
       razorpayPaymentId, 
@@ -249,19 +260,20 @@ exports.verifyPaymentAndAcceptLead = async (req, res) => {
   }
 };
 
-// Reject Lead (Free - No Payment)
+// Reject Lead (Free - No Payment) (Vendor/Individual)
 exports.rejectLead = async (req, res) => {
   try {
     const vendorId = req.user._id;
     const { leadResponseId } = req.params;
     const { notes } = req.body;
 
-    // Check if user is vendor
+    // Check if user is vendor or individual
+    const { isVendorOrIndividual } = require('../utils/roleHelper');
     const user = await User.findById(vendorId);
-    if (!user || user.role !== 'vendor') {
+    if (!user || !isVendorOrIndividual(user)) {
       return res.status(403).json({
         success: false,
-        message: 'Only vendors can reject leads'
+        message: 'Only vendors or individuals can reject leads'
       });
     }
 
@@ -327,18 +339,19 @@ exports.rejectLead = async (req, res) => {
   }
 };
 
-// Get Vendor Payment History
+// Get Vendor/Individual Payment History
 exports.getVendorPaymentHistory = async (req, res) => {
   try {
     const vendorId = req.user._id;
     const { status, page = 1, limit = 10 } = req.query;
 
-    // Check if user is vendor
+    // Check if user is vendor or individual
+    const { isVendorOrIndividual } = require('../utils/roleHelper');
     const user = await User.findById(vendorId);
-    if (!user || user.role !== 'vendor') {
+    if (!user || !isVendorOrIndividual(user)) {
       return res.status(403).json({
         success: false,
-        message: 'Only vendors can access this'
+        message: 'Only vendors or individuals can access this'
       });
     }
 

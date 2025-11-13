@@ -347,3 +347,168 @@ exports.getIndividualProfile = async (req, res) => {
   }
 };
 
+// Search Individuals (For Vendors to find individuals to hire)
+exports.searchIndividuals = async (req, res) => {
+  try {
+    const vendorId = req.user._id;
+    const vendor = await User.findById(vendorId);
+
+    // Check if user is vendor
+    if (!isVendor(vendor)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only vendors can search for individuals'
+      });
+    }
+
+    const {
+      search,
+      city,
+      state,
+      pincode,
+      businessName,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    // Build search query for individuals
+    const userQuery = { role: 'individual' };
+    
+    // Exclude already hired individuals
+    const hiredIndividuals = await VendorEmployee.find({
+      vendorId,
+      status: { $in: ['active', 'inactive'] }
+    }).select('individualId');
+    
+    const hiredIndividualIds = hiredIndividuals.map(emp => emp.individualId);
+    if (hiredIndividualIds.length > 0) {
+      userQuery._id = { $nin: hiredIndividualIds };
+    }
+
+    // Search by name, email, or phone
+    if (search) {
+      userQuery.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Filter by location
+    if (city) {
+      userQuery['location.city'] = { $regex: city, $options: 'i' };
+    }
+    if (state) {
+      userQuery['location.state'] = { $regex: state, $options: 'i' };
+    }
+    if (pincode) {
+      userQuery['location.pincode'] = pincode;
+    }
+
+    // Get individuals matching user criteria
+    const individuals = await User.find(userQuery)
+      .select('name email phone role location isVerified')
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .sort({ createdAt: -1 });
+
+    // Get KYC details for these individuals
+    const individualIds = individuals.map(ind => ind._id);
+    const kycs = await Kyc.find({
+      userId: { $in: individualIds },
+      status: 'approved'
+    }).select('userId businessName contactPerson mobileNumber email businessType personalCity personalState personalPincode businessCity businessState businessPincode');
+
+    // Create a map of userId to KYC
+    const kycMap = {};
+    kycs.forEach(kyc => {
+      if (!kycMap[kyc.userId]) {
+        kycMap[kyc.userId] = [];
+      }
+      kycMap[kyc.userId].push(kyc);
+    });
+
+    // Filter by business name if provided
+    let filteredIndividuals = individuals;
+    if (businessName) {
+      const matchingKycUserIds = kycs
+        .filter(kyc => kyc.businessName && kyc.businessName.toLowerCase().includes(businessName.toLowerCase()))
+        .map(kyc => kyc.userId.toString());
+      
+      filteredIndividuals = individuals.filter(ind => 
+        matchingKycUserIds.includes(ind._id.toString())
+      );
+    }
+
+    // Get service counts for individuals
+    const ServiceCatalog = require('../models/ServiceCatalog');
+    const serviceCounts = await ServiceCatalog.aggregate([
+      { $match: { vendorId: { $in: individualIds } } },
+      { $group: { _id: '$vendorId', count: { $sum: 1 } } }
+    ]);
+
+    const serviceCountMap = {};
+    serviceCounts.forEach(item => {
+      serviceCountMap[item._id.toString()] = item.count;
+    });
+
+    // Format response
+    const formattedIndividuals = filteredIndividuals.map(individual => {
+      const individualKycs = kycMap[individual._id.toString()] || [];
+      const servicesCount = serviceCountMap[individual._id.toString()] || 0;
+
+      return {
+        individualId: individual._id,
+        name: individual.name,
+        email: individual.email,
+        phone: individual.phone,
+        role: individual.role,
+        isVerified: individual.isVerified,
+        location: individual.location,
+        businesses: individualKycs.map(kyc => ({
+          businessName: kyc.businessName,
+          contactPerson: kyc.contactPerson,
+          mobileNumber: kyc.mobileNumber,
+          email: kyc.email,
+          businessType: kyc.businessType,
+          city: kyc.personalCity || kyc.businessCity,
+          state: kyc.personalState || kyc.businessState,
+          pincode: kyc.personalPincode || kyc.businessPincode
+        })),
+        servicesCount,
+        createdAt: individual.createdAt
+      };
+    });
+
+    // Get total count
+    const total = await User.countDocuments(userQuery);
+
+    res.status(200).json({
+      success: true,
+      message: 'Individuals found successfully',
+      data: {
+        individuals: formattedIndividuals,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / parseInt(limit))
+        },
+        filters: {
+          search: search || null,
+          city: city || null,
+          state: state || null,
+          pincode: pincode || null,
+          businessName: businessName || null
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search individuals',
+      error: error.message
+    });
+  }
+};
+

@@ -4,6 +4,8 @@ const BusinessKeyword = require('../models/BusinessKeyword');
 const Kyc = require('../models/Kyc');
 const User = require('../models/User');
 const ServiceCatalog = require('../models/ServiceCatalog');
+const VendorEmployee = require('../models/VendorEmployee');
+const Payment = require('../models/Payment');
 
 // Search Keywords and Get Suggestions (Public/User) - No Radius
 exports.searchKeywordSuggestions = async (req, res) => {
@@ -96,7 +98,7 @@ exports.searchVendorsByKeyword = async (req, res) => {
           select: 'name email phone'
         }
       })
-      .populate('vendorId', 'name email phone');
+      .populate('vendorId', 'name email phone role');
 
     // Filter out null businesses
     const validMatches = matchedKeywords.filter(k => k.businessId !== null);
@@ -365,12 +367,28 @@ exports.submitLead = async (req, res) => {
       });
     }
 
+    // Get all individuals who are employees of any vendor (active or inactive)
+    // These individuals should NOT receive leads
+    const employedIndividuals = await VendorEmployee.find({
+      status: { $in: ['active', 'inactive'] }
+    }).select('individualId');
+    
+    const employedIndividualIds = employedIndividuals.map(emp => emp.individualId.toString());
+
     // Group by vendor and create lead responses
+    // Exclude individuals who are employees of any vendor
     const vendorLeadsMap = new Map();
     
     relevantMatches.forEach(match => {
       const vendorId = match.vendorId._id.toString();
       const businessId = match.businessId._id.toString();
+      
+      // Check if this is an individual who is employed by any vendor
+      // If yes, skip this match (don't send lead to employed individuals)
+      if (employedIndividualIds.includes(vendorId)) {
+        console.log(`⏭️  Skipping lead for individual ${vendorId} - they are employed by a vendor`);
+        return; // Skip this individual
+      }
       
       if (!vendorLeadsMap.has(vendorId)) {
         const business = nearbyBusinesses.find(b => b._id.toString() === businessId);
@@ -415,7 +433,7 @@ exports.submitLead = async (req, res) => {
       .populate('userId', 'name email phone');
 
     const populatedResponses = await LeadResponse.find({ leadId: lead._id })
-      .populate('vendorId', 'name email phone')
+      .populate('vendorId', 'name email phone role')
       .populate('businessId', 'businessName city state mobileNumber email');
 
     // Send real-time notification to vendors via Socket.IO
@@ -488,7 +506,7 @@ exports.getUserLeads = async (req, res) => {
     const leadsWithResponses = await Promise.all(
       leads.map(async (lead) => {
         const responses = await LeadResponse.find({ leadId: lead._id })
-          .populate('vendorId', 'name email phone')
+          .populate('vendorId', 'name email phone role')
           .populate('businessId', 'businessName city state mobileNumber email');
         
         return {
@@ -520,18 +538,19 @@ exports.getUserLeads = async (req, res) => {
   }
 };
 
-// Get Vendor's Leads (Vendor)
+// Get Vendor's Leads (Vendor/Individual)
 exports.getVendorLeads = async (req, res) => {
   try {
     const vendorId = req.user._id;
     const { status, page = 1, limit = 10 } = req.query;
 
-    // Check if user is vendor
+    // Check if user is vendor or individual
+    const { isVendorOrIndividual } = require('../utils/roleHelper');
     const user = await User.findById(vendorId);
-    if (!user || user.role !== 'vendor') {
+    if (!user || !isVendorOrIndividual(user)) {
       return res.status(403).json({
         success: false,
-        message: 'Only vendors can access this'
+        message: 'Only vendors or individuals can access this'
       });
     }
 
@@ -546,6 +565,7 @@ exports.getVendorLeads = async (req, res) => {
       .skip((page - 1) * limit)
       .populate('leadId')
       .populate('businessId', 'businessName city state')
+      .populate('vendorId', 'name email phone role')
       .populate({
         path: 'leadId',
         populate: {
@@ -578,7 +598,7 @@ exports.getVendorLeads = async (req, res) => {
   }
 };
 
-// Accept/Reject Lead (Vendor)
+// Accept/Reject Lead (Vendor/Individual)
 exports.respondToLead = async (req, res) => {
   try {
     const vendorId = req.user._id;
@@ -593,12 +613,13 @@ exports.respondToLead = async (req, res) => {
       });
     }
 
-    // Check if user is vendor
+    // Check if user is vendor or individual
+    const { isVendorOrIndividual } = require('../utils/roleHelper');
     const user = await User.findById(vendorId);
-    if (!user || user.role !== 'vendor') {
+    if (!user || !isVendorOrIndividual(user)) {
       return res.status(403).json({
         success: false,
-        message: 'Only vendors can respond to leads'
+        message: 'Only vendors or individuals can respond to leads'
       });
     }
 
@@ -625,6 +646,25 @@ exports.respondToLead = async (req, res) => {
         success: false,
         message: `This lead has already been ${leadResponse.status}`
       });
+    }
+
+    // If accepting lead, check if payment is successful (MANDATORY)
+    if (status === 'accepted') {
+      const payment = await Payment.findOne({
+        leadResponseId,
+        vendorId,
+        status: 'success'
+      });
+
+      if (!payment) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment is required to accept a lead. Please complete the payment first.',
+          paymentRequired: true,
+          amount: 9.00,
+          currency: 'INR'
+        });
+      }
     }
 
     // Update lead response
@@ -655,6 +695,7 @@ exports.respondToLead = async (req, res) => {
     const populatedResponse = await LeadResponse.findById(leadResponseId)
       .populate('leadId')
       .populate('businessId', 'businessName city state')
+      .populate('vendorId', 'name email phone role')
       .populate({
         path: 'leadId',
         populate: {
@@ -679,17 +720,18 @@ exports.respondToLead = async (req, res) => {
   }
 };
 
-// Get Vendor Lead Statistics (Vendor)
+// Get Vendor Lead Statistics (Vendor/Individual)
 exports.getVendorLeadStats = async (req, res) => {
   try {
     const vendorId = req.user._id;
 
-    // Check if user is vendor
+    // Check if user is vendor or individual
+    const { isVendorOrIndividual } = require('../utils/roleHelper');
     const user = await User.findById(vendorId);
-    if (!user || user.role !== 'vendor') {
+    if (!user || !isVendorOrIndividual(user)) {
       return res.status(403).json({
         success: false,
-        message: 'Only vendors can access this'
+        message: 'Only vendors or individuals can access this'
       });
     }
 
