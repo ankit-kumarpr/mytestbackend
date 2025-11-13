@@ -2,9 +2,7 @@ const Review = require("../models/Review");
 const User = require("../models/User");
 const Lead = require("../models/Lead");
 const LeadResponse = require("../models/LeadResponse");
-
-const isAdminUser = (user) =>
-  user && (user.role === "admin" || user.role === "superadmin");
+const { isVendorOrIndividual, isAdminUser } = require("../utils/roleHelper");
 
 const formatReviewResponse = (review) => ({
   id: review._id,
@@ -292,10 +290,10 @@ exports.getVendorReviews = async (req, res) => {
     const { vendorId } = req.params;
 
     const vendor = await User.findById(vendorId);
-    if (!vendor || vendor.role !== "vendor") {
+    if (!vendor || !isVendorOrIndividual(vendor)) {
       return res.status(404).json({
         success: false,
-        message: "Vendor not found",
+        message: "Vendor or individual not found",
       });
     }
 

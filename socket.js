@@ -21,7 +21,7 @@ const initSocket = (server) => {
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-      socket.userId = decoded.id;
+      socket.userId = decoded.userId || decoded.id; // Support both userId and id
       socket.userRole = decoded.role;
       next();
     } catch (error) {
@@ -30,12 +30,13 @@ const initSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.userId} (${socket.userRole})`);
+    console.log(`✅ User connected: ${socket.userId} (${socket.userRole})`);
 
     // Join vendor room for real-time lead notifications
-    if (socket.userRole === 'vendor') {
-      socket.join(`vendor_${socket.userId}`);
-      console.log(`Vendor ${socket.userId} joined room: vendor_${socket.userId}`);
+    if (socket.userRole === 'vendor' || socket.userRole === 'individual') {
+      const vendorRoom = `vendor_${socket.userId}`;
+      socket.join(vendorRoom);
+      console.log(`🏪 Vendor ${socket.userId} joined room: ${vendorRoom}`);
     }
 
     // Join user room

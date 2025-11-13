@@ -18,8 +18,102 @@ const KycSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  businessType: {
+    type: String,
+    enum: ['vendor', 'individual'],
+    default: function() {
+      // Auto-detect: if GST exists, it's vendor, else individual
+      return this.gstNumber && this.gstNumber.trim() ? 'vendor' : 'individual';
+    }
+  },
   
-  // Address
+  // Business Address (for vendor or individual with GST)
+  businessPlotNo: {
+    type: String,
+    trim: true
+  },
+  businessBuildingName: {
+    type: String,
+    trim: true
+  },
+  businessStreet: {
+    type: String,
+    trim: true
+  },
+  businessLandmark: {
+    type: String,
+    trim: true
+  },
+  businessArea: {
+    type: String,
+    trim: true
+  },
+  businessPincode: {
+    type: String,
+    validate: {
+      validator: function(v) {
+        return !v || /^\d{6}$/.test(v);
+      },
+      message: 'Business pincode must be exactly 6 digits'
+    }
+  },
+  businessState: {
+    type: String,
+    trim: true
+  },
+  businessCity: {
+    type: String,
+    trim: true
+  },
+  businessAddress: {
+    type: String,
+    trim: true
+  },
+  
+  // Personal Address (for individual without GST or when different from business)
+  personalPlotNo: {
+    type: String,
+    trim: true
+  },
+  personalBuildingName: {
+    type: String,
+    trim: true
+  },
+  personalStreet: {
+    type: String,
+    trim: true
+  },
+  personalLandmark: {
+    type: String,
+    trim: true
+  },
+  personalArea: {
+    type: String,
+    trim: true
+  },
+  personalPincode: {
+    type: String,
+    validate: {
+      validator: function(v) {
+        return !v || /^\d{6}$/.test(v);
+      },
+      message: 'Personal pincode must be exactly 6 digits'
+    }
+  },
+  personalState: {
+    type: String,
+    trim: true
+  },
+  personalCity: {
+    type: String,
+    trim: true
+  },
+  personalAddress: {
+    type: String,
+    trim: true
+  },
+  
+  // Legacy Address Fields (for backward compatibility - will be migrated)
   plotNo: {
     type: String,
     trim: true
@@ -42,27 +136,18 @@ const KycSchema = new mongoose.Schema({
   },
   pincode: {
     type: String,
-    required: true,
     validate: {
       validator: function(v) {
-        return /^\d{6}$/.test(v);
+        return !v || /^\d{6}$/.test(v);
       },
       message: 'Pincode must be exactly 6 digits'
     }
   },
   state: {
     type: String,
-    required: true,
     trim: true
   },
   city: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  
-  // Business Address (Full)
-  businessAddress: {
     type: String,
     trim: true
   },

@@ -421,9 +421,11 @@ exports.submitLead = async (req, res) => {
     // Send real-time notification to vendors via Socket.IO
     const io = req.app.get('io');
     if (io) {
+      console.log(`📤 Sending lead notifications to ${populatedResponses.length} vendor(s)...`);
       populatedResponses.forEach(response => {
         const vendorId = response.vendorId._id.toString();
-        io.to(`vendor_${vendorId}`).emit('new_lead', {
+        const vendorRoom = `vendor_${vendorId}`;
+        const leadData = {
           leadResponse: response,
           lead: {
             searchKeyword: lead.searchKeyword,
@@ -435,8 +437,13 @@ exports.submitLead = async (req, res) => {
               email: user.email
             }
           }
-        });
+        };
+        console.log(`   📨 Emitting 'new_lead' to room: ${vendorRoom}`);
+        io.to(vendorRoom).emit('new_lead', leadData);
       });
+      console.log(`✅ Lead notifications sent!`);
+    } else {
+      console.warn('⚠️  Socket.IO not available - notifications not sent');
     }
 
     res.status(201).json({

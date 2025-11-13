@@ -4,7 +4,7 @@ const { sendMail, kycSubmissionTemplate, kycApprovalTemplate, kycRejectionTempla
 const path = require('path');
 const axios = require('axios');
 
-// Helper function to get coordinates from address using Google Geocoding API
+// Helper function to get coordinates from address using Google Geocoding API or Positionstack
 const getCoordinatesFromAddress = async (addressComponents) => {
   try {
     // Build full address string
@@ -21,44 +21,66 @@ const getCoordinatesFromAddress = async (addressComponents) => {
 
     console.log('Geocoding address:', fullAddress);
 
-    // Check if Google Maps API key is available
-    if (!process.env.GOOGLE_MAPS_API_KEY) {
-      console.warn('Google Maps API key not found. Using pincode-based approximate location.');
-      // Fallback: Use India's approximate center for now
-      return {
-        longitude: 78.9629,
-        latitude: 20.5937,
-        address: fullAddress
-      };
+    // Try Google Maps API first (if key available)
+    if (process.env.GOOGLE_MAPS_API_KEY) {
+      try {
+        const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+          params: {
+            address: fullAddress,
+            key: process.env.GOOGLE_MAPS_API_KEY,
+            region: 'in'
+          },
+          timeout: 5000
+        });
+
+        if (response.data.status === 'OK' && response.data.results.length > 0) {
+          const location = response.data.results[0].geometry.location;
+          console.log('Google Geocoding successful:', location);
+          return {
+            longitude: location.lng,
+            latitude: location.lat,
+            address: fullAddress
+          };
+        }
+      } catch (googleError) {
+        console.warn('Google Geocoding failed:', googleError.message);
+      }
     }
 
-    // Call Google Geocoding API
-    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
-      params: {
-        address: fullAddress,
-        key: process.env.GOOGLE_MAPS_API_KEY,
-        region: 'in' // Bias results to India
-      },
-      timeout: 5000
-    });
+    // Try Positionstack API as fallback (if key available)
+    if (process.env.POSITIONSTACK_API_KEY) {
+      try {
+        const response = await axios.get('http://api.positionstack.com/v1/forward', {
+          params: {
+            access_key: process.env.POSITIONSTACK_API_KEY,
+            query: fullAddress,
+            country: 'IN',
+            limit: 1
+          },
+          timeout: 5000
+        });
 
-    if (response.data.status === 'OK' && response.data.results.length > 0) {
-      const location = response.data.results[0].geometry.location;
-      console.log('Geocoding successful:', location);
-      return {
-        longitude: location.lng,
-        latitude: location.lat,
-        address: fullAddress
-      };
-    } else {
-      console.warn('Geocoding failed:', response.data.status);
-      // Fallback to approximate location
-      return {
-        longitude: 78.9629,
-        latitude: 20.5937,
-        address: fullAddress
-      };
+        if (response.data && response.data.data && response.data.data.length > 0) {
+          const location = response.data.data[0];
+          console.log('Positionstack Geocoding successful:', location);
+          return {
+            longitude: location.longitude,
+            latitude: location.latitude,
+            address: fullAddress
+          };
+        }
+      } catch (positionstackError) {
+        console.warn('Positionstack Geocoding failed:', positionstackError.message);
+      }
     }
+
+    // Final fallback: Use India's approximate center
+    console.warn('No geocoding API available or all failed. Using approximate location for India.');
+    return {
+      longitude: 78.9629,
+      latitude: 20.5937,
+      address: fullAddress
+    };
   } catch (error) {
     console.error('Geocoding error:', error.message);
     // Return approximate center of India as fallback
@@ -87,6 +109,7 @@ exports.submitKyc = async (req, res) => {
     const {
       businessName,
       gstNumber,
+      // Legacy address fields (for backward compatibility)
       plotNo,
       buildingName,
       street,
@@ -95,6 +118,29 @@ exports.submitKyc = async (req, res) => {
       pincode,
       state,
       city,
+      // New business address fields
+      businessPlotNo,
+      businessBuildingName,
+      businessStreet,
+      businessLandmark,
+      businessArea,
+      businessPincode,
+      businessState,
+      businessCity,
+      businessAddress,
+      // Personal address fields
+      personalPlotNo,
+      personalBuildingName,
+      personalStreet,
+      personalLandmark,
+      personalArea,
+      personalPincode,
+      personalState,
+      personalCity,
+      personalAddress,
+      // Location coordinates (optional - if provided, will override geocoding)
+      longitude,
+      latitude,
       title,
       contactPerson,
       mobileNumber,
@@ -106,14 +152,47 @@ exports.submitKyc = async (req, res) => {
       aadharNumber
     } = req.body;
 
-    // Validation
-    if (!businessName || !pincode || !state || !city || !title || !contactPerson || 
+    // Determine business type based on GST
+    const hasGst = gstNumber && gstNumber.trim();
+    const businessType = hasGst ? 'vendor' : 'individual';
+
+    // Validation - Basic required fields
+    if (!businessName || !title || !contactPerson || 
         !mobileNumber || !email || !workingDays || !businessHoursOpen || !businessHoursClose || 
         !aadharNumber) {
       return res.status(400).json({
         success: false,
         message: 'All required fields must be provided'
       });
+    }
+
+    // Address validation based on GST
+    if (hasGst) {
+      // Vendor: Business address is required
+      const businessAddressFields = businessPincode || businessState || businessCity || 
+                                    businessPlotNo || businessBuildingName || businessStreet ||
+                                    businessArea || businessAddress;
+      const legacyAddressFields = pincode || state || city || plotNo || buildingName || street || area;
+      
+      if (!businessAddressFields && !legacyAddressFields) {
+        return res.status(400).json({
+          success: false,
+          message: 'Business address is required when GST number is provided'
+        });
+      }
+    } else {
+      // Individual: Personal address is required
+      const personalAddressFields = personalPincode || personalState || personalCity ||
+                                    personalPlotNo || personalBuildingName || personalStreet ||
+                                    personalArea || personalAddress;
+      const legacyAddressFields = pincode || state || city || plotNo || buildingName || street || area;
+      
+      if (!personalAddressFields && !legacyAddressFields) {
+        return res.status(400).json({
+          success: false,
+          message: 'Personal address is required when GST number is not provided'
+        });
+      }
     }
 
     // Check if same business name already exists for this user
@@ -217,33 +296,132 @@ exports.submitKyc = async (req, res) => {
     const aadharImagePath = `/uploads/aadhar/${req.files.aadharImage[0].filename}`;
     const videoKycPath = `/uploads/video/${req.files.videoKyc[0].filename}`;
 
-    // Get coordinates from address automatically
-    const locationData = await getCoordinatesFromAddress({
-      plotNo,
-      buildingName,
-      street,
-      area,
-      city,
-      state,
-      pincode
-    });
+    // Determine which address to use for geocoding (business address for search/radius)
+    let addressForGeocoding;
+    if (hasGst) {
+      // Vendor: Use business address
+      if (businessPincode || businessState || businessCity) {
+        addressForGeocoding = {
+          plotNo: businessPlotNo || plotNo || '',
+          buildingName: businessBuildingName || buildingName || '',
+          street: businessStreet || street || '',
+          area: businessArea || area || '',
+          city: businessCity || city || '',
+          state: businessState || state || '',
+          pincode: businessPincode || pincode || ''
+        };
+      } else {
+        // Fallback to legacy fields
+        addressForGeocoding = {
+          plotNo: plotNo || '',
+          buildingName: buildingName || '',
+          street: street || '',
+          area: area || '',
+          city: city || '',
+          state: state || '',
+          pincode: pincode || ''
+        };
+      }
+    } else {
+      // Individual: Use personal address for geocoding (or business if provided)
+      if (personalPincode || personalState || personalCity) {
+        addressForGeocoding = {
+          plotNo: personalPlotNo || '',
+          buildingName: personalBuildingName || '',
+          street: personalStreet || '',
+          area: personalArea || '',
+          city: personalCity || '',
+          state: personalState || '',
+          pincode: personalPincode || ''
+        };
+      } else if (businessPincode || businessState || businessCity) {
+        // If business address provided, use that
+        addressForGeocoding = {
+          plotNo: businessPlotNo || '',
+          buildingName: businessBuildingName || '',
+          street: businessStreet || '',
+          area: businessArea || '',
+          city: businessCity || '',
+          state: businessState || '',
+          pincode: businessPincode || ''
+        };
+      } else {
+        // Fallback to legacy fields
+        addressForGeocoding = {
+          plotNo: plotNo || '',
+          buildingName: buildingName || '',
+          street: street || '',
+          area: area || '',
+          city: city || '',
+          state: state || '',
+          pincode: pincode || ''
+        };
+      }
+    }
 
-    console.log('Generated location:', locationData);
+    // Get coordinates - use provided coordinates or geocode from address
+    let locationData;
+    
+    // If longitude and latitude are provided from frontend, use them directly
+    if (longitude && latitude && !isNaN(longitude) && !isNaN(latitude)) {
+      const fullAddress = [
+        addressForGeocoding.plotNo,
+        addressForGeocoding.buildingName,
+        addressForGeocoding.street,
+        addressForGeocoding.area,
+        addressForGeocoding.city,
+        addressForGeocoding.state,
+        addressForGeocoding.pincode,
+        'India'
+      ].filter(Boolean).join(', ');
+      
+      locationData = {
+        longitude: parseFloat(longitude),
+        latitude: parseFloat(latitude),
+        address: fullAddress
+      };
+      console.log('Using provided coordinates:', locationData);
+    } else {
+      // Fallback to automatic geocoding from address
+      locationData = await getCoordinatesFromAddress(addressForGeocoding);
+      console.log('Generated location via geocoding:', locationData);
+    }
 
     // Create or update KYC
     const kycData = {
       userId,
       businessName,
-      gstNumber: gstNumber || '',
+      gstNumber: gstNumber ? gstNumber.trim() : '',
+      businessType,
+      // Business Address (for vendor or individual with GST)
+      businessPlotNo: businessPlotNo || plotNo || '',
+      businessBuildingName: businessBuildingName || buildingName || '',
+      businessStreet: businessStreet || street || '',
+      businessLandmark: businessLandmark || landmark || '',
+      businessArea: businessArea || area || '',
+      businessPincode: businessPincode || pincode || '',
+      businessState: businessState || state || '',
+      businessCity: businessCity || city || '',
+      businessAddress: businessAddress || locationData.address,
+      // Personal Address (for individual without GST)
+      personalPlotNo: personalPlotNo || '',
+      personalBuildingName: personalBuildingName || '',
+      personalStreet: personalStreet || '',
+      personalLandmark: personalLandmark || '',
+      personalArea: personalArea || '',
+      personalPincode: personalPincode || '',
+      personalState: personalState || '',
+      personalCity: personalCity || '',
+      personalAddress: personalAddress || '',
+      // Legacy fields (for backward compatibility)
       plotNo: plotNo || '',
       buildingName: buildingName || '',
       street: street || '',
       landmark: landmark || '',
       area: area || '',
-      pincode,
-      state,
-      city,
-      businessAddress: locationData.address, // Full address
+      pincode: pincode || businessPincode || personalPincode || '',
+      state: state || businessState || personalState || '',
+      city: city || businessCity || personalCity || '',
       location: {
         type: 'Point',
         coordinates: [locationData.longitude, locationData.latitude]
@@ -368,17 +546,14 @@ exports.updateKyc = async (req, res) => {
 
     // Check if user is already a vendor
     const user = await User.findById(userId);
-    if (user.role === 'vendor') {
-      return res.status(400).json({
-        success: false,
-        message: 'You are already registered as a vendor'
-      });
-    }
+    // Allow vendor/individual to submit multiple businesses
+    // No restriction on role for multiple business submissions
 
     // Validate required fields
     const {
       businessName,
       gstNumber,
+      // Legacy address fields
       plotNo,
       buildingName,
       street,
@@ -387,6 +562,26 @@ exports.updateKyc = async (req, res) => {
       pincode,
       state,
       city,
+      // New business address fields
+      businessPlotNo,
+      businessBuildingName,
+      businessStreet,
+      businessLandmark,
+      businessArea,
+      businessPincode,
+      businessState,
+      businessCity,
+      businessAddress,
+      // Personal address fields
+      personalPlotNo,
+      personalBuildingName,
+      personalStreet,
+      personalLandmark,
+      personalArea,
+      personalPincode,
+      personalState,
+      personalCity,
+      personalAddress,
       title,
       contactPerson,
       mobileNumber,
@@ -398,14 +593,47 @@ exports.updateKyc = async (req, res) => {
       aadharNumber
     } = req.body;
 
-    // Validation
-    if (!businessName || !pincode || !state || !city || !title || !contactPerson || 
+    // Determine business type based on GST
+    const hasGst = gstNumber && gstNumber.trim();
+    const businessType = hasGst ? 'vendor' : 'individual';
+
+    // Validation - Basic required fields
+    if (!businessName || !title || !contactPerson || 
         !mobileNumber || !email || !workingDays || !businessHoursOpen || !businessHoursClose || 
         !aadharNumber) {
       return res.status(400).json({
         success: false,
         message: 'All required fields must be provided'
       });
+    }
+
+    // Address validation based on GST
+    if (hasGst) {
+      // Vendor: Business address is required
+      const businessAddressFields = businessPincode || businessState || businessCity || 
+                                    businessPlotNo || businessBuildingName || businessStreet ||
+                                    businessArea || businessAddress;
+      const legacyAddressFields = pincode || state || city || plotNo || buildingName || street || area;
+      
+      if (!businessAddressFields && !legacyAddressFields) {
+        return res.status(400).json({
+          success: false,
+          message: 'Business address is required when GST number is provided'
+        });
+      }
+    } else {
+      // Individual: Personal address is required
+      const personalAddressFields = personalPincode || personalState || personalCity ||
+                                    personalPlotNo || personalBuildingName || personalStreet ||
+                                    personalArea || personalAddress;
+      const legacyAddressFields = pincode || state || city || plotNo || buildingName || street || area;
+      
+      if (!personalAddressFields && !legacyAddressFields) {
+        return res.status(400).json({
+          success: false,
+          message: 'Personal address is required when GST number is not provided'
+        });
+      }
     }
 
     // Parse workingDays if it comes as a string (from form-data)
@@ -498,18 +726,107 @@ exports.updateKyc = async (req, res) => {
       videoKycPath = `/uploads/video/${videoFile.filename}`;
     }
 
+    // Determine which address to use for geocoding
+    let addressForGeocoding;
+    if (hasGst) {
+      // Vendor: Use business address
+      if (businessPincode || businessState || businessCity) {
+        addressForGeocoding = {
+          plotNo: businessPlotNo || plotNo || '',
+          buildingName: businessBuildingName || buildingName || '',
+          street: businessStreet || street || '',
+          area: businessArea || area || '',
+          city: businessCity || city || '',
+          state: businessState || state || '',
+          pincode: businessPincode || pincode || ''
+        };
+      } else {
+        addressForGeocoding = {
+          plotNo: plotNo || '',
+          buildingName: buildingName || '',
+          street: street || '',
+          area: area || '',
+          city: city || '',
+          state: state || '',
+          pincode: pincode || ''
+        };
+      }
+    } else {
+      // Individual: Use personal address
+      if (personalPincode || personalState || personalCity) {
+        addressForGeocoding = {
+          plotNo: personalPlotNo || '',
+          buildingName: personalBuildingName || '',
+          street: personalStreet || '',
+          area: personalArea || '',
+          city: personalCity || '',
+          state: personalState || '',
+          pincode: personalPincode || ''
+        };
+      } else if (businessPincode || businessState || businessCity) {
+        addressForGeocoding = {
+          plotNo: businessPlotNo || '',
+          buildingName: businessBuildingName || '',
+          street: businessStreet || '',
+          area: businessArea || '',
+          city: businessCity || '',
+          state: businessState || '',
+          pincode: businessPincode || ''
+        };
+      } else {
+        addressForGeocoding = {
+          plotNo: plotNo || '',
+          buildingName: buildingName || '',
+          street: street || '',
+          area: area || '',
+          city: city || '',
+          state: state || '',
+          pincode: pincode || ''
+        };
+      }
+    }
+
+    // Get coordinates from address
+    const locationData = await getCoordinatesFromAddress(addressForGeocoding);
+
     // Update KYC data
     const updateData = {
       businessName,
-      gstNumber: gstNumber || '',
-      plotNo: plotNo || '',
-      buildingName: buildingName || '',
-      street: street || '',
-      landmark: landmark || '',
-      area: area || '',
-      pincode,
-      state,
-      city,
+      gstNumber: gstNumber ? gstNumber.trim() : '',
+      businessType,
+      // Business Address
+      businessPlotNo: businessPlotNo || plotNo || existingKyc.businessPlotNo || '',
+      businessBuildingName: businessBuildingName || buildingName || existingKyc.businessBuildingName || '',
+      businessStreet: businessStreet || street || existingKyc.businessStreet || '',
+      businessLandmark: businessLandmark || landmark || existingKyc.businessLandmark || '',
+      businessArea: businessArea || area || existingKyc.businessArea || '',
+      businessPincode: businessPincode || pincode || existingKyc.businessPincode || '',
+      businessState: businessState || state || existingKyc.businessState || '',
+      businessCity: businessCity || city || existingKyc.businessCity || '',
+      businessAddress: businessAddress || locationData.address || existingKyc.businessAddress || '',
+      // Personal Address
+      personalPlotNo: personalPlotNo || existingKyc.personalPlotNo || '',
+      personalBuildingName: personalBuildingName || existingKyc.personalBuildingName || '',
+      personalStreet: personalStreet || existingKyc.personalStreet || '',
+      personalLandmark: personalLandmark || existingKyc.personalLandmark || '',
+      personalArea: personalArea || existingKyc.personalArea || '',
+      personalPincode: personalPincode || existingKyc.personalPincode || '',
+      personalState: personalState || existingKyc.personalState || '',
+      personalCity: personalCity || existingKyc.personalCity || '',
+      personalAddress: personalAddress || existingKyc.personalAddress || '',
+      // Legacy fields
+      plotNo: plotNo || businessPlotNo || personalPlotNo || existingKyc.plotNo || '',
+      buildingName: buildingName || businessBuildingName || personalBuildingName || existingKyc.buildingName || '',
+      street: street || businessStreet || personalStreet || existingKyc.street || '',
+      landmark: landmark || businessLandmark || personalLandmark || existingKyc.landmark || '',
+      area: area || businessArea || personalArea || existingKyc.area || '',
+      pincode: pincode || businessPincode || personalPincode || existingKyc.pincode || '',
+      state: state || businessState || personalState || existingKyc.state || '',
+      city: city || businessCity || personalCity || existingKyc.city || '',
+      location: {
+        type: 'Point',
+        coordinates: [locationData.longitude, locationData.latitude]
+      },
       title,
       contactPerson,
       mobileNumber,
@@ -661,9 +978,29 @@ exports.approveKyc = async (req, res) => {
     kyc.rejectedAt = null;
     await kyc.save();
 
-    // Update user role to vendor (if not already vendor)
+    // Determine role based on GST
+    const hasGst = kyc.gstNumber && kyc.gstNumber.trim();
+    const newRole = hasGst ? 'vendor' : 'individual';
+
+    // Update user role based on GST (if not already vendor or individual)
     const user = await User.findById(kyc.userId._id);
-    if (user.role !== 'vendor') {
+    if (user.role !== 'vendor' && user.role !== 'individual') {
+      await User.findByIdAndUpdate(
+        user._id,
+        { role: newRole },
+        { new: true }
+      );
+      user.role = newRole;
+    } else if (user.role === 'vendor' && !hasGst) {
+      // If user was vendor but now no GST, update to individual
+      await User.findByIdAndUpdate(
+        user._id,
+        { role: 'individual' },
+        { new: true }
+      );
+      user.role = 'individual';
+    } else if (user.role === 'individual' && hasGst) {
+      // If user was individual but now has GST, update to vendor
       await User.findByIdAndUpdate(
         user._id,
         { role: 'vendor' },
@@ -673,6 +1010,7 @@ exports.approveKyc = async (req, res) => {
     }
 
     const customId = user._id.toString().substring(0, 8).toUpperCase();
+    const roleLabel = hasGst ? 'Vendor' : 'Individual';
 
     // Send approval email
     try {
@@ -685,7 +1023,7 @@ exports.approveKyc = async (req, res) => {
       
       await sendMail({
         to: kyc.email,
-        subject: 'KYC Approved - Welcome Vendor - Gnet E-commerce',
+        subject: `KYC Approved - Welcome ${roleLabel} - Gnet E-commerce`,
         html
       });
     } catch (emailError) {
@@ -694,10 +1032,11 @@ exports.approveKyc = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'KYC approved successfully. User role updated to vendor.',
+      message: `KYC approved successfully. User role updated to ${newRole}.`,
       data: {
         kycId: kyc._id,
         status: kyc.status,
+        businessType: kyc.businessType || newRole,
         user: {
           id: user._id,
           name: user.name,

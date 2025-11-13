@@ -1,5 +1,6 @@
 const ServiceCatalog = require('../models/ServiceCatalog');
 const User = require('../models/User');
+const { isVendorOrIndividual } = require('../utils/roleHelper');
 const fs = require('fs');
 const path = require('path');
 
@@ -10,13 +11,13 @@ exports.addService = async (req, res) => {
     const currentUserId = req.user._id;
     const currentUser = await User.findById(currentUserId);
 
-    // Check if user is vendor
-    if (currentUser.role !== 'vendor') {
+    // Check if user is vendor or individual
+    if (!isVendorOrIndividual(currentUser)) {
       // Clean up uploaded files
       cleanupUploadedFiles(req.files);
       return res.status(403).json({
         success: false,
-        message: 'Only vendors can add services'
+        message: 'Only vendors or individuals can add services'
       });
     }
 
@@ -29,13 +30,13 @@ exports.addService = async (req, res) => {
       });
     }
 
-    // Verify vendor exists
+    // Verify vendor/individual exists
     const vendor = await User.findById(vendorId);
-    if (!vendor || vendor.role !== 'vendor') {
+    if (!vendor || !isVendorOrIndividual(vendor)) {
       cleanupUploadedFiles(req.files);
       return res.status(404).json({
         success: false,
-        message: 'Vendor not found'
+        message: 'Vendor or individual not found'
       });
     }
 
@@ -168,12 +169,12 @@ exports.getVendorServices = async (req, res) => {
   try {
     const { vendorId } = req.params;
 
-    // Verify vendor exists
+    // Verify vendor/individual exists
     const vendor = await User.findById(vendorId);
-    if (!vendor || vendor.role !== 'vendor') {
+    if (!vendor || !isVendorOrIndividual(vendor)) {
       return res.status(404).json({
         success: false,
-        message: 'Vendor not found'
+        message: 'Vendor or individual not found'
       });
     }
 
@@ -244,8 +245,8 @@ exports.updateService = async (req, res) => {
       });
     }
 
-    // Check if user is vendor and owns this service
-    if (currentUser.role !== 'vendor' || service.vendorId.toString() !== currentUserId.toString()) {
+    // Check if user is vendor/individual and owns this service
+    if (!isVendorOrIndividual(currentUser) || service.vendorId.toString() !== currentUserId.toString()) {
       cleanupUploadedFiles(req.files);
       return res.status(403).json({
         success: false,
@@ -383,8 +384,8 @@ exports.deleteService = async (req, res) => {
       });
     }
 
-    // Check if user is vendor and owns this service
-    if (currentUser.role !== 'vendor' || service.vendorId.toString() !== currentUserId.toString()) {
+    // Check if user is vendor/individual and owns this service
+    if (!isVendorOrIndividual(currentUser) || service.vendorId.toString() !== currentUserId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'You can only delete your own services'
@@ -460,8 +461,8 @@ exports.deleteAttachment = async (req, res) => {
       });
     }
 
-    // Check if user is vendor and owns this service
-    if (currentUser.role !== 'vendor' || service.vendorId.toString() !== currentUserId.toString()) {
+    // Check if user is vendor/individual and owns this service
+    if (!isVendorOrIndividual(currentUser) || service.vendorId.toString() !== currentUserId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'You can only delete attachments from your own services'

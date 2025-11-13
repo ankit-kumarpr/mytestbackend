@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Lead Test</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #messages {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .message {
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #007bff;
+            background: white;
+        }
+        .message.new-lead {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .message.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔔 Socket.IO Lead Notification Test</h1>
+
+    <div class="container">
+        <h2>Connection</h2>
+        <input type="text" id="serverUrl" placeholder="Server URL" value="http://localhost:5000" style="width: 300px;">
+        <input type="text" id="authToken" placeholder="Vendor JWT Token" style="width: 500px;">
+        <br>
+        <button id="connectBtn" onclick="connect()">Connect</button>
+        <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+        <div id="status" class="status disconnected">Disconnected</div>
+    </div>
+
+    <div class="container">
+        <h2>Messages</h2>
+        <button onclick="clearMessages()">Clear Messages</button>
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        let socket = null;
+
+        function addMessage(type, title, data) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const time = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `
+                <strong>${time} - ${title}</strong>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '✅ Connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '❌ Disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            }
+        }
+
+        function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const authToken = document.getElementById('authToken').value;
+
+            if (!authToken) {
+                alert('Please enter vendor JWT token!');
+                return;
+            }
+
+            addMessage('info', 'Connecting...', { serverUrl, authToken: authToken.substring(0, 20) + '...' });
+
+            socket = io(serverUrl, {
+                auth: {
+                    token: authToken
+                },
+                transports: ['websocket']
+            });
+
+            socket.on('connect', () => {
+                addMessage('success', '✅ Connected to Server', {
+                    socketId: socket.id,
+                    userId: socket.userId,
+                    role: socket.userRole
+                });
+                updateStatus(true);
+            });
+
+            socket.on('disconnect', (reason) => {
+                addMessage('error', '❌ Disconnected', { reason });
+                updateStatus(false);
+            });
+
+            socket.on('connect_error', (error) => {
+                addMessage('error', '❌ Connection Error', { message: error.message });
+                updateStatus(false);
+            });
+
+            // Listen for new lead event
+            socket.on('new_lead', (data) => {
+                addMessage('new-lead', '🎉 NEW LEAD RECEIVED!', data);
+                
+                // Auto-acknowledge (optional)
+                if (data.leadResponse && data.leadResponse._id) {
+                    socket.emit('lead_received', {
+                        leadResponseId: data.leadResponse._id
+                    });
+                    addMessage('info', '✅ Lead Acknowledged', { leadResponseId: data.leadResponse._id });
+                }
+            });
+
+            // Listen for any other events
+            socket.onAny((eventName, ...args) => {
+                if (eventName !== 'new_lead') {
+                    addMessage('info', `Event: ${eventName}`, args);
+                }
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                addMessage('info', 'Disconnected by user', {});
+                updateStatus(false);
+            }
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+        }
+
+        // Auto-connect on page load if token in URL
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            if (token) {
+                document.getElementById('authToken').value = token;
+            }
+        };
+    </script>
+</body>
+</html>
+

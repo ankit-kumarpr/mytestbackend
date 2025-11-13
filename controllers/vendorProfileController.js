@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Kyc = require('../models/Kyc');
 const BusinessKeyword = require('../models/BusinessKeyword');
 const Review = require('../models/Review');
+const { isVendorOrIndividual } = require('../utils/roleHelper');
 const fs = require('fs');
 const path = require('path');
 
@@ -13,7 +14,7 @@ class ApiError extends Error {
   }
 }
 
-const allowedManagerRoles = ['vendor', 'admin', 'superadmin'];
+const allowedManagerRoles = ['vendor', 'individual', 'admin', 'superadmin'];
 
 const defaultSocialMediaLinks = () => ({
   facebook: '',
@@ -53,11 +54,11 @@ const ensureVendorAccess = async (req, vendorId) => {
     throw new ApiError(404, 'Vendor not found');
   }
 
-  if (targetUser.role !== 'vendor') {
-    throw new ApiError(403, 'This user is not a vendor');
+  if (!isVendorOrIndividual(targetUser)) {
+    throw new ApiError(403, 'This user is not a vendor or individual');
   }
 
-  if (currentUser.role === 'vendor' && targetUserId !== currentUserId) {
+  if (isVendorOrIndividual(currentUser) && targetUserId !== currentUserId) {
     throw new ApiError(403, 'You can only manage your own profile');
   }
 
@@ -130,11 +131,11 @@ exports.getVendorProfile = async (req, res) => {
       });
     }
 
-    // Check if user is vendor
-    if (user.role !== 'vendor') {
+    // Check if user is vendor or individual
+    if (!isVendorOrIndividual(user)) {
       return res.status(400).json({
         success: false,
-        message: 'This user is not a vendor'
+        message: 'This user is not a vendor or individual'
       });
     }
 
@@ -518,7 +519,7 @@ exports.getBusinessDetails = async (req, res) => {
 
     const isAdmin = currentUser.role === 'admin' || currentUser.role === 'superadmin';
     const isOwner =
-      currentUser.role === 'vendor' &&
+      isVendorOrIndividual(currentUser) &&
       business.userId &&
       business.userId._id.toString() === currentUser._id.toString();
 
@@ -627,7 +628,7 @@ exports.updateVendorProfile = async (req, res) => {
     }
 
     // If vendor is trying to update profile, vendorId must match their own ID
-    if (currentUser.role === 'vendor') {
+    if (isVendorOrIndividual(currentUser)) {
       if (targetUserId !== currentUserId.toString()) {
         // Clean up uploaded files
         if (req.files) {
@@ -679,7 +680,7 @@ exports.updateVendorProfile = async (req, res) => {
       });
     }
 
-    if (targetUser.role !== 'vendor') {
+    if (!isVendorOrIndividual(targetUser)) {
       // Clean up uploaded files
       if (req.files) {
         if (req.files.businessPhotos) {
@@ -699,12 +700,12 @@ exports.updateVendorProfile = async (req, res) => {
       }
       return res.status(403).json({
         success: false,
-        message: 'This user is not a vendor'
+        message: 'This user is not a vendor or individual'
       });
     }
 
-    // Check if current user has permission (vendor can only update own, admin/superadmin can update any)
-    if (currentUser.role !== 'vendor' && currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
+    // Check if current user has permission (vendor/individual can only update own, admin/superadmin can update any)
+    if (!isVendorOrIndividual(currentUser) && currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
       // Clean up uploaded files
       if (req.files) {
         if (req.files.businessPhotos) {
@@ -918,12 +919,12 @@ exports.deleteBusinessPhoto = async (req, res) => {
       });
     }
 
-    // Check if user is vendor
+    // Check if user is vendor or individual
     const user = await User.findById(userId);
-    if (user.role !== 'vendor') {
+    if (!isVendorOrIndividual(user)) {
       return res.status(403).json({
         success: false,
-        message: 'Only vendors can delete photos'
+        message: 'Only vendors or individuals can delete photos'
       });
     }
 
@@ -974,12 +975,12 @@ exports.deleteBusinessVideo = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // Check if user is vendor
+    // Check if user is vendor or individual
     const user = await User.findById(userId);
-    if (user.role !== 'vendor') {
+    if (!isVendorOrIndividual(user)) {
       return res.status(403).json({
         success: false,
-        message: 'Only vendors can delete video'
+        message: 'Only vendors or individuals can delete video'
       });
     }
 

@@ -201,16 +201,30 @@ exports.verifyOtp = async (req, res) => {
     // Delete verified OTP
     await Otp.deleteMany({ email });
 
+    // Generate tokens for automatic login after verification
+    const payload = {
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
     res.status(200).json({
       success: true,
       message: "Email verified successfully. Welcome email sent!",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        isVerified: user.isVerified,
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          isVerified: user.isVerified,
+        },
+        accessToken,
+        refreshToken,
       },
     });
   } catch (error) {

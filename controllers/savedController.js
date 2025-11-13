@@ -1,6 +1,7 @@
 const Saved = require("../models/Saved");
 const User = require("../models/User");
 const ServiceCatalog = require("../models/ServiceCatalog");
+const { isVendorOrIndividual } = require("../utils/roleHelper");
 
 // Add to saved
 exports.addToSaved = async (req, res) => {
@@ -26,10 +27,10 @@ exports.addToSaved = async (req, res) => {
     // Check if item exists
     if (itemType === "vendor") {
       const vendor = await User.findById(itemId);
-      if (!vendor || vendor.role !== "vendor") {
+      if (!vendor || !isVendorOrIndividual(vendor)) {
         return res.status(404).json({
           success: false,
-          message: "Vendor not found",
+          message: "Vendor or individual not found",
         });
       }
     } else if (itemType === "service") {
@@ -177,7 +178,7 @@ exports.getMySaved = async (req, res) => {
           const vendor = await User.findById(saved.itemId).select(
             "name email phone role"
           );
-          if (vendor && vendor.role === "vendor") {
+          if (vendor && isVendorOrIndividual(vendor)) {
             saved.itemId = vendor;
             return saved;
           }

@@ -24,6 +24,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const favoriteRoutes = require("./routes/favoriteRoutes");
 const savedRoutes = require("./routes/savedRoutes");
+const vendorEmployeeRoutes = require("./routes/vendorEmployeeRoutes");
 
 const app = express();
 
@@ -35,6 +36,9 @@ app.use(express.json());
 
 // Serve uploaded files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Serve public files (for test pages)
+app.use(express.static(path.join(__dirname, "public")));
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -57,6 +61,7 @@ app.use("/api/notification", notificationRoutes);
 app.use("/api/review", reviewRoutes);
 app.use("/api/favorite", favoriteRoutes);
 app.use("/api/saved", savedRoutes);
+app.use("/api/vendor/employee", vendorEmployeeRoutes);
 app.use("/api", homeRoutes);
 
 module.exports = app;
