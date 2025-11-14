@@ -109,18 +109,40 @@ const sendControllerError = (res, error, defaultMessage) => {
   });
 };
 
-// Get Vendor Profile (public - anyone can view)
+// Get Vendor Profile by Business ID (public - anyone can view)
 exports.getVendorProfile = async (req, res) => {
   try {
-    const { vendorId } = req.params;
-    const userId = vendorId || req.user?._id;
+    const { businessId } = req.params;
 
-    if (!userId) {
+    if (!businessId) {
       return res.status(400).json({
         success: false,
-        message: 'Vendor ID is required'
+        message: 'Business ID is required'
       });
     }
+
+    // Get business (KYC) by businessId
+    const business = await Kyc.findById(businessId)
+      .populate('userId', 'name email phone role')
+      .populate('approvedBy', 'name email')
+      .populate('rejectedBy', 'name email');
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: 'Business not found'
+      });
+    }
+
+    // Check if business is approved
+    if (business.status !== 'approved') {
+      return res.status(403).json({
+        success: false,
+        message: 'Business profile is not approved yet'
+      });
+    }
+
+    const userId = business.userId._id;
 
     // Get user
     const user = await User.findById(userId);
@@ -160,13 +182,7 @@ exports.getVendorProfile = async (req, res) => {
       await profile.populate('userId', 'name email phone role');
     }
 
-    // Get all KYC data (multiple businesses)
-    const kycs = await Kyc.find({ userId })
-      .populate('approvedBy', 'name email')
-      .populate('rejectedBy', 'name email')
-      .sort({ createdAt: -1 });
-
-    // Get reviews for this vendor (only approved reviews)
+    // Get reviews for this specific business (only approved reviews)
     const reviews = await Review.find({
       vendorId: userId,
       status: 'approved',
@@ -209,7 +225,7 @@ exports.getVendorProfile = async (req, res) => {
         role: user.role,
         isVerified: user.isVerified
       },
-      businesses: kycs || [], // All businesses/KYCs
+      business: business, // Specific business details
       vendorProfile: {
         website: profile.website,
         socialMediaLinks: profile.socialMediaLinks,

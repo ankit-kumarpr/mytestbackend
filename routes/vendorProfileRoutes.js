@@ -26,8 +26,8 @@ const {
 const { authenticate } = require('../middelware/auth');
 const { uploadVendorProfileFiles, uploadVendorPhotos, uploadVendorVideo } = require('../middelware/upload');
 
-// Public route - anyone can view vendor profile
-router.get('/getvendorprofile/:vendorId', getVendorProfile);
+// Public route - anyone can view vendor profile by business ID
+router.get('/getvendorprofile/:businessId', getVendorProfile);
 
 // Update route - Vendor can update own (by sending own vendorId), Admin/Superadmin can update any
 // (Existing - keeps both photos and video upload functionality)
