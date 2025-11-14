@@ -72,10 +72,16 @@ exports.createLeadAcceptanceOrder = async (req, res) => {
     const amount = 900; // 9 Rs in paise
     const currency = 'INR';
 
+    // Generate receipt (max 40 characters for Razorpay)
+    // Format: LA_<last12charsOfLeadResponseId>_<last8charsOfTimestamp>
+    const leadResponseIdStr = leadResponseId.toString();
+    const timestamp = Date.now().toString();
+    const receipt = `LA_${leadResponseIdStr.slice(-12)}_${timestamp.slice(-8)}`; // Max 12+1+12+1+8 = 34 chars
+
     const options = {
       amount: amount, // Amount in paise
       currency: currency,
-      receipt: `lead_accept_${leadResponseId}_${Date.now()}`,
+      receipt: receipt, // Max 40 characters
       notes: {
         leadResponseId: leadResponseId.toString(),
         vendorId: vendorId.toString(),
