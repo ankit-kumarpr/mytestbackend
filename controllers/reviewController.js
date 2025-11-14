@@ -188,18 +188,20 @@ exports.updateReview = async (req, res) => {
       });
     }
 
-    // Only the user who created the review can update it
+    // Only the user who created the review or admin can update it
     const isOwner = review.userId.toString() === req.user._id.toString();
+    const isAdmin = isAdminUser(req.user);
     
-    if (!isOwner) {
+    if (!isOwner && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: "You can only update your own reviews",
       });
     }
 
-    // If review is approved, updating it will set status back to pending for admin approval
-    if (review.status === "approved") {
+    // If review is approved and updated by owner (not admin), set status back to pending for admin approval
+    // Admin can update approved reviews without changing status
+    if (review.status === "approved" && !isAdmin) {
       review.status = "pending";
       review.approvedBy = undefined;
       review.approvedAt = undefined;
@@ -229,9 +231,13 @@ exports.updateReview = async (req, res) => {
     await review.populate("userId", "name email phone role");
     await review.populate("vendorId", "name email phone role");
 
+    const message = isAdmin 
+      ? "Review updated successfully by admin." 
+      : "Review updated successfully. It will be reviewed by admin again.";
+    
     return res.status(200).json({
       success: true,
-      message: "Review updated successfully. It will be reviewed by admin again.",
+      message,
       data: formatReviewResponse(review),
     });
   } catch (error) {
