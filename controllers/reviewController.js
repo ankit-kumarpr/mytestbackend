@@ -1,7 +1,5 @@
 const Review = require("../models/Review");
 const User = require("../models/User");
-const Lead = require("../models/Lead");
-const LeadResponse = require("../models/LeadResponse");
 const { isVendorOrIndividual, isAdminUser } = require("../utils/roleHelper");
 
 const formatReviewResponse = (review) => ({
@@ -99,29 +97,6 @@ exports.createVendorReview = async (req, res) => {
       });
     }
 
-    // Check if user has enquired about this vendor or received service from them
-    // User can review if they have created a lead that matches this vendor
-    // (This covers both enquiry and received service scenarios)
-    const userLeads = await Lead.find({ userId, status: { $in: ["pending", "in-progress", "completed"] } });
-    const leadIds = userLeads.map(lead => lead._id);
-
-    // Check if there's a LeadResponse from this vendor for any of the user's leads
-    // This means the user has enquired about this vendor's services
-    // If status is "accepted", it means they received the service
-    const vendorLeadResponse = await LeadResponse.findOne({
-      leadId: { $in: leadIds },
-      vendorId: vendor._id,
-    });
-
-    // User can review if they have enquired (created a lead that matches this vendor)
-    // OR received the service (vendor accepted their lead response)
-    if (!vendorLeadResponse) {
-      return res.status(403).json({
-        success: false,
-        message: "You can only review vendors that you have enquired about or received service from. Please enquire about this vendor first.",
-      });
-    }
-
     // Check if review already exists for this vendor
     const existingReview = await Review.findOne({
       userId,
@@ -188,20 +163,23 @@ exports.updateReview = async (req, res) => {
       });
     }
 
-    // Only the user who created the review or admin can update it
+    // Only the user who created the review or admin/superadmin/salesperson can update it
     const isOwner = review.userId.toString() === req.user._id.toString();
     const isAdmin = isAdminUser(req.user);
+    const isSalesPerson = req.user && req.user.role === "salesperson";
+    const canUpdate = isOwner || isAdmin || isSalesPerson;
     
-    if (!isOwner && !isAdmin) {
+    if (!canUpdate) {
       return res.status(403).json({
         success: false,
         message: "You can only update your own reviews",
       });
     }
 
-    // If review is approved and updated by owner (not admin), set status back to pending for admin approval
-    // Admin can update approved reviews without changing status
-    if (review.status === "approved" && !isAdmin) {
+    // If review is approved and updated by owner (not admin/superadmin/salesperson), set status back to pending for admin approval
+    // Admin/superadmin/salesperson can update approved reviews without changing status
+    const isStaff = isAdmin || isSalesPerson;
+    if (review.status === "approved" && !isStaff) {
       review.status = "pending";
       review.approvedBy = undefined;
       review.approvedAt = undefined;
@@ -231,8 +209,8 @@ exports.updateReview = async (req, res) => {
     await review.populate("userId", "name email phone role");
     await review.populate("vendorId", "name email phone role");
 
-    const message = isAdmin 
-      ? "Review updated successfully by admin." 
+    const message = isStaff 
+      ? "Review updated successfully by staff." 
       : "Review updated successfully. It will be reviewed by admin again.";
     
     return res.status(200).json({
