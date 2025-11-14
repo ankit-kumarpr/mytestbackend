@@ -59,10 +59,11 @@ exports.createVendorReview = async (req, res) => {
     const { rating, comment } = req.body;
     const userId = req.user._id;
 
-    if (req.user.role !== "user") {
+    // Allow both users and vendors to submit reviews
+    if (req.user.role !== "user" && req.user.role !== "vendor" && req.user.role !== "individual") {
       return res.status(403).json({
         success: false,
-        message: "Only users can submit reviews",
+        message: "Only users, vendors, or individuals can submit reviews",
       });
     }
 
@@ -90,10 +91,18 @@ exports.createVendorReview = async (req, res) => {
 
     // Check if vendor exists
     const vendor = await User.findById(vendorId);
-    if (!vendor || vendor.role !== "vendor") {
+    if (!vendor || !isVendorOrIndividual(vendor)) {
       return res.status(404).json({
         success: false,
-        message: "Vendor not found",
+        message: "Vendor or individual not found",
+      });
+    }
+
+    // Prevent users/vendors from reviewing themselves
+    if (userId.toString() === vendorId.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot review yourself",
       });
     }
 
@@ -163,7 +172,7 @@ exports.updateReview = async (req, res) => {
       });
     }
 
-    // Only the user who created the review or admin/superadmin/salesperson can update it
+    // Only the user/vendor who created the review or admin/superadmin/salesperson can update it
     const isOwner = review.userId.toString() === req.user._id.toString();
     const isAdmin = isAdminUser(req.user);
     const isSalesPerson = req.user && req.user.role === "salesperson";
@@ -240,10 +249,12 @@ exports.deleteReview = async (req, res) => {
       });
     }
 
-    // Only the user who created the review can delete it
+    // Only the user/vendor who created the review or admin/superadmin can delete it
     const isOwner = review.userId.toString() === req.user._id.toString();
+    const isAdmin = isAdminUser(req.user);
+    const canDelete = isOwner || isAdmin;
     
-    if (!isOwner) {
+    if (!canDelete) {
       return res.status(403).json({
         success: false,
         message: "You can only delete your own reviews",
@@ -493,7 +504,7 @@ exports.rejectReview = async (req, res) => {
   }
 };
 
-// Get user's own reviews
+// Get user's/vendor's own reviews (reviews they submitted)
 exports.getMyReviews = async (req, res) => {
   try {
     const userId = req.user._id;
