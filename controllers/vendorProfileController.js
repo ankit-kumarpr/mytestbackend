@@ -1024,3 +1024,466 @@ exports.deleteBusinessVideo = async (req, res) => {
   }
 };
 
+// ============================================
+// NEW SEPARATE APIs FOR PHOTOS AND VIDEO
+// ============================================
+
+// Upload Business Photos (Add new photos - appends to existing)
+exports.uploadBusinessPhotos = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Check if user is vendor or individual
+    const user = await User.findById(userId);
+    if (!isVendorOrIndividual(user)) {
+      // Clean up uploaded files
+      const uploadedFiles = req.files || [];
+      if (uploadedFiles.length > 0) {
+        uploadedFiles.forEach(file => {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        });
+      }
+      return res.status(403).json({
+        success: false,
+        message: 'Only vendors or individuals can upload photos'
+      });
+    }
+
+    // Handle both 'photos' and 'businessPhotos' field names for compatibility
+    const uploadedFiles = req.files || [];
+    
+    if (uploadedFiles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No photos provided'
+      });
+    }
+
+    // Check file count (max 10 total)
+    const profile = await ensureVendorProfileExists(userId);
+    const currentPhotoCount = profile.businessPhotos.length;
+    const newPhotoCount = uploadedFiles.length;
+    
+    if (currentPhotoCount + newPhotoCount > 10) {
+      // Clean up uploaded files
+      uploadedFiles.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+      return res.status(400).json({
+        success: false,
+        message: `Maximum 10 photos allowed. You have ${currentPhotoCount} photos and trying to add ${newPhotoCount}. Please delete some photos first.`
+      });
+    }
+
+    // Validate file sizes (max 10MB each)
+    const invalidFiles = uploadedFiles.filter(file => file.size > 10 * 1024 * 1024);
+    if (invalidFiles.length > 0) {
+      // Clean up all files
+      uploadedFiles.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Each photo must be less than 10MB'
+      });
+    }
+
+    // Add new photos to existing ones
+    const newPhotoPaths = uploadedFiles.map(file => `/uploads/vendor/photos/${file.filename}`);
+    profile.businessPhotos = [...profile.businessPhotos, ...newPhotoPaths];
+    await profile.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Business photos uploaded successfully',
+      data: {
+        totalPhotos: profile.businessPhotos.length,
+        newPhotos: newPhotoPaths,
+        allPhotos: profile.businessPhotos
+      }
+    });
+  } catch (error) {
+    // Clean up uploaded files on error
+    const uploadedFiles = req.files || [];
+    if (uploadedFiles.length > 0) {
+      uploadedFiles.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+    }
+    return sendControllerError(res, error, 'Failed to upload business photos');
+  }
+};
+
+// Get All Business Photos
+exports.getBusinessPhotos = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const userId = vendorId || req.user?._id;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vendor ID is required'
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (!isVendorOrIndividual(user)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This user is not a vendor or individual'
+      });
+    }
+
+    const profile = await VendorProfile.findOne({ userId });
+    const photos = profile ? profile.businessPhotos : [];
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalPhotos: photos.length,
+        photos: photos
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to get business photos');
+  }
+};
+
+// Delete Single Business Photo
+exports.deleteSingleBusinessPhoto = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { photoPath } = req.body;
+
+    if (!photoPath) {
+      return res.status(400).json({
+        success: false,
+        message: 'Photo path is required'
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!isVendorOrIndividual(user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only vendors or individuals can delete photos'
+      });
+    }
+
+    const profile = await VendorProfile.findOne({ userId });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor profile not found'
+      });
+    }
+
+    const photoIndex = profile.businessPhotos.indexOf(photoPath);
+    if (photoIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Photo not found in profile'
+      });
+    }
+
+    // Delete file from filesystem
+    const filePath = path.join(__dirname, '..', photoPath);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Remove photo from array
+    profile.businessPhotos.splice(photoIndex, 1);
+    await profile.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Business photo deleted successfully',
+      data: {
+        totalPhotos: profile.businessPhotos.length,
+        remainingPhotos: profile.businessPhotos
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to delete business photo');
+  }
+};
+
+// Update/Replace All Business Photos (Replaces all existing photos with new ones)
+exports.updateBusinessPhotos = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Check if user is vendor or individual
+    const user = await User.findById(userId);
+    if (!isVendorOrIndividual(user)) {
+      // Clean up uploaded files
+      const uploadedFiles = req.files || [];
+      if (uploadedFiles.length > 0) {
+        uploadedFiles.forEach(file => {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        });
+      }
+      return res.status(403).json({
+        success: false,
+        message: 'Only vendors or individuals can update photos'
+      });
+    }
+
+    // Handle both 'photos' and 'businessPhotos' field names for compatibility
+    const uploadedFiles = req.files || [];
+    
+    if (uploadedFiles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No photos provided'
+      });
+    }
+
+    // Validate file count (max 10)
+    if (uploadedFiles.length > 10) {
+      // Clean up uploaded files
+      uploadedFiles.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 10 photos allowed'
+      });
+    }
+
+    // Validate file sizes (max 10MB each)
+    const invalidFiles = uploadedFiles.filter(file => file.size > 10 * 1024 * 1024);
+    if (invalidFiles.length > 0) {
+      // Clean up all files
+      uploadedFiles.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Each photo must be less than 10MB'
+      });
+    }
+
+    const profile = await ensureVendorProfileExists(userId);
+
+    // Delete all old photos from filesystem
+    profile.businessPhotos.forEach(photoPath => {
+      const filePath = path.join(__dirname, '..', photoPath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    });
+
+    // Replace with new photos
+    const newPhotoPaths = uploadedFiles.map(file => `/uploads/vendor/photos/${file.filename}`);
+    profile.businessPhotos = newPhotoPaths;
+    await profile.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Business photos updated successfully (all photos replaced)',
+      data: {
+        totalPhotos: profile.businessPhotos.length,
+        photos: profile.businessPhotos
+      }
+    });
+  } catch (error) {
+    // Clean up uploaded files on error
+    const uploadedFiles = req.files || [];
+    if (uploadedFiles.length > 0) {
+      uploadedFiles.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
+    }
+    return sendControllerError(res, error, 'Failed to update business photos');
+  }
+};
+
+// Delete All Business Photos
+exports.deleteAllBusinessPhotos = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!isVendorOrIndividual(user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only vendors or individuals can delete photos'
+      });
+    }
+
+    const profile = await VendorProfile.findOne({ userId });
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor profile not found'
+      });
+    }
+
+    // Delete all files from filesystem
+    profile.businessPhotos.forEach(photoPath => {
+      const filePath = path.join(__dirname, '..', photoPath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    });
+
+    const deletedCount = profile.businessPhotos.length;
+    profile.businessPhotos = [];
+    await profile.save();
+
+    res.status(200).json({
+      success: true,
+      message: `All business photos (${deletedCount}) deleted successfully`,
+      data: {
+        deletedCount: deletedCount,
+        totalPhotos: 0
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to delete all business photos');
+  }
+};
+
+// Upload Business Video (Replaces existing video)
+exports.uploadBusinessVideo = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Check if user is vendor or individual
+    const user = await User.findById(userId);
+    if (!isVendorOrIndividual(user)) {
+      // Clean up uploaded file
+      const videoFile = req.file;
+      if (videoFile && fs.existsSync(videoFile.path)) {
+        fs.unlinkSync(videoFile.path);
+      }
+      return res.status(403).json({
+        success: false,
+        message: 'Only vendors or individuals can upload video'
+      });
+    }
+
+    // Handle both 'video' and 'businessVideo' field names for compatibility
+    const videoFile = req.file;
+    
+    if (!videoFile) {
+      return res.status(400).json({
+        success: false,
+        message: 'No video file provided'
+      });
+    }
+
+    // Validate file size (max 100MB)
+    if (videoFile.size > 100 * 1024 * 1024) {
+      // Clean up uploaded file
+      if (fs.existsSync(videoFile.path)) {
+        fs.unlinkSync(videoFile.path);
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Video must be less than 100MB'
+      });
+    }
+
+    const profile = await ensureVendorProfileExists(userId);
+
+    // Delete old video if exists
+    if (profile.businessVideo) {
+      const oldVideoPath = path.join(__dirname, '..', profile.businessVideo);
+      if (fs.existsSync(oldVideoPath)) {
+        fs.unlinkSync(oldVideoPath);
+      }
+    }
+
+    // Update with new video
+    profile.businessVideo = `/uploads/vendor/video/${videoFile.filename}`;
+    await profile.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Business video uploaded successfully',
+      data: {
+        video: profile.businessVideo,
+        videoUrl: `${req.protocol}://${req.get('host')}${profile.businessVideo}`
+      }
+    });
+  } catch (error) {
+    // Clean up uploaded file on error
+    const videoFile = req.file;
+    if (videoFile && fs.existsSync(videoFile.path)) {
+      fs.unlinkSync(videoFile.path);
+    }
+    return sendControllerError(res, error, 'Failed to upload business video');
+  }
+};
+
+// Get Business Video
+exports.getBusinessVideo = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const userId = vendorId || req.user?._id;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vendor ID is required'
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (!isVendorOrIndividual(user)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This user is not a vendor or individual'
+      });
+    }
+
+    const profile = await VendorProfile.findOne({ userId });
+    const video = profile && profile.businessVideo ? profile.businessVideo : null;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        hasVideo: !!video,
+        video: video,
+        videoUrl: video ? `${req.protocol}://${req.get('host')}${video}` : null
+      }
+    });
+  } catch (error) {
+    return sendControllerError(res, error, 'Failed to get business video');
+  }
+};
+

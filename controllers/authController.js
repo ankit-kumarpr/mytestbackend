@@ -627,7 +627,7 @@ exports.refreshToken = async (req, res) => {
       });
     }
 
-    // Generate new access token
+    // Generate new access token and new refresh token
     const payload = {
       userId: user._id.toString(),
       email: user.email,
@@ -635,12 +635,14 @@ exports.refreshToken = async (req, res) => {
     };
 
     const newAccessToken = generateAccessToken(payload);
+    const newRefreshToken = generateRefreshToken(payload);
 
     res.status(200).json({
       success: true,
-      message: "Access token refreshed successfully",
+      message: "Tokens refreshed successfully",
       data: {
         accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
         user: {
           id: user._id,
           name: user.name,
