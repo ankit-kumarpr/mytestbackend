@@ -6,6 +6,7 @@ const User = require('../models/User');
 const ServiceCatalog = require('../models/ServiceCatalog');
 const VendorEmployee = require('../models/VendorEmployee');
 const Payment = require('../models/Payment');
+const VendorProfile = require('../models/VendorProfile');
 
 // Search Keywords and Get Suggestions (Public/User) - No Radius
 exports.searchKeywordSuggestions = async (req, res) => {
@@ -193,6 +194,17 @@ exports.searchVendorsByKeyword = async (req, res) => {
     // Get vendor IDs from businesses
     const vendorIds = businesses.map(b => b.vendor._id.toString());
 
+    // Fetch VendorProfile data for all vendors
+    const vendorProfiles = await VendorProfile.find({
+      userId: { $in: vendorIds }
+    });
+    
+    // Create a map of vendorId -> VendorProfile
+    const vendorProfileMap = new Map();
+    vendorProfiles.forEach(profile => {
+      vendorProfileMap.set(profile.userId.toString(), profile);
+    });
+
     // Fetch all services for these vendors
     const allServices = await ServiceCatalog.find({
       vendorId: { $in: vendorIds }
@@ -223,11 +235,39 @@ exports.searchVendorsByKeyword = async (req, res) => {
       });
     });
 
-    // Add services to each business/vendor
+    // Add services and VendorProfile data to each business/vendor
+    const baseUrl = req ? `${req.protocol}://${req.get('host')}` : '';
     const businessesWithServices = businesses.map(business => {
       const vendorId = business.vendor._id.toString();
+      const vendorProfile = vendorProfileMap.get(vendorId);
+      
+      // Add VendorProfile data (businessPhotos, businessVideo, website, socialMediaLinks)
+      const businessPhotos = vendorProfile && vendorProfile.businessPhotos 
+        ? vendorProfile.businessPhotos.map(photo => ({
+            path: photo,
+            url: baseUrl ? `${baseUrl}${photo}` : photo
+          }))
+        : [];
+      
+      const businessVideo = vendorProfile && vendorProfile.businessVideo
+        ? {
+            path: vendorProfile.businessVideo,
+            url: baseUrl ? `${baseUrl}${vendorProfile.businessVideo}` : vendorProfile.businessVideo
+          }
+        : null;
+      
       return {
         ...business,
+        businessPhotos: businessPhotos,
+        businessVideo: businessVideo,
+        website: vendorProfile ? vendorProfile.website : '',
+        socialMediaLinks: vendorProfile ? vendorProfile.socialMediaLinks : {
+          facebook: '',
+          instagram: '',
+          twitter: '',
+          linkedin: '',
+          youtube: ''
+        },
         services: servicesByVendor.get(vendorId) || [],
         totalServices: servicesByVendor.get(vendorId)?.length || 0
       };
@@ -434,14 +474,24 @@ exports.submitLead = async (req, res) => {
 
     const populatedResponses = await LeadResponse.find({ leadId: lead._id })
       .populate('vendorId', 'name email phone role')
-      .populate('businessId', 'businessName city state mobileNumber email');
+      .populate({
+        path: 'businessId',
+        select: 'businessName city state mobileNumber email businessAddress pincode businessDescription category subCategory location userId',
+        populate: {
+          path: 'userId',
+          select: 'name email phone role'
+        }
+      });
+    
+    // Enrich with VendorProfile data (businessPhotos, businessVideo, etc.)
+    const enrichedResponses = await enrichLeadResponsesWithVendorProfile(populatedResponses, req);
 
     // Send real-time notification to vendors via Socket.IO
     const io = req.app.get('io');
     if (io) {
-      console.log(`📤 Sending lead notifications to ${populatedResponses.length} vendor(s)...`);
-      populatedResponses.forEach(response => {
-        const vendorId = response.vendorId._id.toString();
+      console.log(`📤 Sending lead notifications to ${enrichedResponses.length} vendor(s)...`);
+      enrichedResponses.forEach(response => {
+        const vendorId = response.vendorId && response.vendorId._id ? response.vendorId._id.toString() : response.vendorId.toString();
         const vendorRoom = `vendor_${vendorId}`;
         const leadData = {
           leadResponse: response,
@@ -469,7 +519,7 @@ exports.submitLead = async (req, res) => {
       message: `Lead submitted successfully! ${leadResponses.length} vendor(s) notified in real-time`,
       data: {
         lead: populatedLead,
-        notifiedVendors: populatedResponses
+        notifiedVendors: enrichedResponses
       }
     });
 
@@ -507,11 +557,21 @@ exports.getUserLeads = async (req, res) => {
       leads.map(async (lead) => {
         const responses = await LeadResponse.find({ leadId: lead._id })
           .populate('vendorId', 'name email phone role')
-          .populate('businessId', 'businessName city state mobileNumber email');
+          .populate({
+            path: 'businessId',
+            select: 'businessName city state mobileNumber email businessAddress pincode businessDescription category subCategory location userId',
+            populate: {
+              path: 'userId',
+              select: 'name email phone role'
+            }
+          });
+        
+        // Enrich with VendorProfile data
+        const enrichedResponses = await enrichLeadResponsesWithVendorProfile(responses, req);
         
         return {
           ...lead.toObject(),
-          responses
+          responses: enrichedResponses
         };
       })
     );
@@ -564,7 +624,14 @@ exports.getVendorLeads = async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .populate('leadId')
-      .populate('businessId', 'businessName city state')
+      .populate({
+        path: 'businessId',
+        select: 'businessName city state mobileNumber email businessAddress pincode businessDescription category subCategory location userId',
+        populate: {
+          path: 'userId',
+          select: 'name email phone role'
+        }
+      })
       .populate('vendorId', 'name email phone role')
       .populate({
         path: 'leadId',
@@ -574,12 +641,15 @@ exports.getVendorLeads = async (req, res) => {
         }
       });
 
+    // Enrich with VendorProfile data
+    const enrichedResponses = await enrichLeadResponsesWithVendorProfile(leadResponses, req);
+
     const total = await LeadResponse.countDocuments(query);
 
     res.status(200).json({
       success: true,
       data: {
-        leads: leadResponses,
+        leads: enrichedResponses,
         pagination: {
           total,
           page: parseInt(page),
@@ -694,7 +764,14 @@ exports.respondToLead = async (req, res) => {
     // Populate and return
     const populatedResponse = await LeadResponse.findById(leadResponseId)
       .populate('leadId')
-      .populate('businessId', 'businessName city state')
+      .populate({
+        path: 'businessId',
+        select: 'businessName city state mobileNumber email businessAddress pincode businessDescription category subCategory location userId',
+        populate: {
+          path: 'userId',
+          select: 'name email phone role'
+        }
+      })
       .populate('vendorId', 'name email phone role')
       .populate({
         path: 'leadId',
@@ -704,10 +781,13 @@ exports.respondToLead = async (req, res) => {
         }
       });
 
+    // Enrich with VendorProfile data
+    const enrichedResponse = await enrichLeadResponsesWithVendorProfile([populatedResponse], req);
+
     res.status(200).json({
       success: true,
       message: `Lead ${status} successfully`,
-      data: populatedResponse
+      data: enrichedResponse[0]
     });
 
   } catch (error) {
@@ -745,7 +825,17 @@ exports.getVendorLeadStats = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(5)
       .populate('leadId', 'searchKeyword description')
-      .populate('businessId', 'businessName');
+      .populate({
+        path: 'businessId',
+        select: 'businessName city state mobileNumber email businessAddress pincode businessDescription category subCategory location userId',
+        populate: {
+          path: 'userId',
+          select: 'name email phone role'
+        }
+      });
+    
+    // Enrich with VendorProfile data
+    const enrichedRecentLeads = await enrichLeadResponsesWithVendorProfile(recentLeads, req);
 
     // Get acceptance rate
     const acceptanceRate = totalLeads > 0 
@@ -762,7 +852,7 @@ exports.getVendorLeadStats = async (req, res) => {
           pending: pendingLeads,
           acceptanceRate: parseFloat(acceptanceRate)
         },
-        recentActivity: recentLeads
+        recentActivity: enrichedRecentLeads
       }
     });
 
@@ -790,5 +880,55 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // Distance in meters
+}
+
+// Helper function to enrich lead responses with VendorProfile data
+async function enrichLeadResponsesWithVendorProfile(leadResponses, req = null) {
+  const enrichedResponses = await Promise.all(
+    leadResponses.map(async (response) => {
+      const responseObj = response.toObject ? response.toObject() : response;
+      
+      // Get VendorProfile for the vendor
+      if (responseObj.businessId && responseObj.businessId.userId) {
+        const vendorProfile = await VendorProfile.findOne({
+          userId: responseObj.businessId.userId
+        });
+        
+        if (vendorProfile) {
+          // Add full URLs for images and video
+          const baseUrl = req ? `${req.protocol}://${req.get('host')}` : '';
+          
+          responseObj.businessId.businessPhotos = vendorProfile.businessPhotos.map(photo => ({
+            path: photo,
+            url: baseUrl ? `${baseUrl}${photo}` : photo
+          }));
+          
+          responseObj.businessId.businessVideo = vendorProfile.businessVideo ? {
+            path: vendorProfile.businessVideo,
+            url: baseUrl ? `${baseUrl}${vendorProfile.businessVideo}` : vendorProfile.businessVideo
+          } : null;
+          
+          responseObj.businessId.website = vendorProfile.website;
+          responseObj.businessId.socialMediaLinks = vendorProfile.socialMediaLinks;
+        } else {
+          // If no vendor profile, set defaults
+          responseObj.businessId.businessPhotos = [];
+          responseObj.businessId.businessVideo = null;
+          responseObj.businessId.website = '';
+          responseObj.businessId.socialMediaLinks = {
+            facebook: '',
+            instagram: '',
+            twitter: '',
+            linkedin: '',
+            youtube: ''
+          };
+        }
+      }
+      
+      return responseObj;
+    })
+  );
+  
+  return enrichedResponses;
 }
 
