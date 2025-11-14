@@ -166,6 +166,39 @@ exports.getVendorProfile = async (req, res) => {
       .populate('rejectedBy', 'name email')
       .sort({ createdAt: -1 });
 
+    // Get reviews for this vendor (only approved reviews)
+    const reviews = await Review.find({
+      vendorId: userId,
+      status: 'approved',
+      isDeleted: false
+    })
+      .populate('userId', 'name email phone role')
+      .sort({ createdAt: -1 })
+      .limit(10); // Latest 10 reviews
+
+    // Calculate average rating
+    const totalReviews = reviews.length;
+    const averageRating = totalReviews > 0
+      ? Number((reviews.reduce((sum, item) => sum + item.rating, 0) / totalReviews).toFixed(2))
+      : 0;
+
+    // Get services for this vendor
+    const ServiceCatalog = require('../models/ServiceCatalog');
+    const services = await ServiceCatalog.find({ vendorId: userId })
+      .sort({ createdAt: -1 });
+
+    // Add full URLs for photos and video
+    const baseUrl = req ? `${req.protocol}://${req.get('host')}` : '';
+    const businessPhotos = profile.businessPhotos.map(photo => ({
+      path: photo,
+      url: baseUrl ? `${baseUrl}${photo}` : photo
+    }));
+
+    const businessVideo = profile.businessVideo ? {
+      path: profile.businessVideo,
+      url: baseUrl ? `${baseUrl}${profile.businessVideo}` : profile.businessVideo
+    } : null;
+
     // Combine all data
     const responseData = {
       user: {
@@ -180,9 +213,16 @@ exports.getVendorProfile = async (req, res) => {
       vendorProfile: {
         website: profile.website,
         socialMediaLinks: profile.socialMediaLinks,
-        businessPhotos: profile.businessPhotos,
-        businessVideo: profile.businessVideo
+        businessPhotos: businessPhotos,
+        businessVideo: businessVideo
       },
+      reviews: {
+        total: totalReviews,
+        averageRating: averageRating,
+        latestReviews: reviews
+      },
+      services: services || [],
+      totalServices: services.length,
       createdAt: profile.createdAt,
       updatedAt: profile.updatedAt
     };
